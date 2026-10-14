@@ -12,11 +12,18 @@ const parseTranslate = (transform: string) => {
   };
 };
 
+// useDraggable positions through --drag-x/--drag-y; render them as a translate.
+const dragTransform = (element: HTMLElement) => {
+  const x = element.style.getPropertyValue("--drag-x");
+  const y = element.style.getPropertyValue("--drag-y");
+  return x && y ? `translate(${x}, ${y})` : "";
+};
+
 const attachRectStub = (element: HTMLElement, width = 160, height = 120) => {
   Object.defineProperty(element, "offsetWidth", { configurable: true, value: width });
   Object.defineProperty(element, "offsetHeight", { configurable: true, value: height });
   element.getBoundingClientRect = () => {
-    const { x, y } = parseTranslate(element.style.transform || "");
+    const { x, y } = parseTranslate(dragTransform(element));
     return {
       x,
       y,
@@ -40,7 +47,7 @@ const attachStaticOffsetRectStub = (
   Object.defineProperty(element, "offsetWidth", { configurable: true, value: width });
   Object.defineProperty(element, "offsetHeight", { configurable: true, value: height });
   element.getBoundingClientRect = () => {
-    const { x, y } = parseTranslate(element.style.transform || "");
+    const { x, y } = parseTranslate(dragTransform(element));
     const left = baseOffset.x + x;
     const top = baseOffset.y + y;
     return {
@@ -116,7 +123,7 @@ describe("useDraggable", () => {
       root.render(<DraggableProbe position={{ x: 260, y: 180 }} />);
     });
 
-    expect(element.style.transform).toBe("translate(260px, 180px)");
+    expect(dragTransform(element)).toBe("translate(260px, 180px)");
   });
 
   it("reports dragged positions through onPositionChange", () => {
@@ -157,7 +164,7 @@ describe("useDraggable", () => {
 
     expect(onPositionChange).toHaveBeenCalled();
     expect(onPositionChange).toHaveBeenLastCalledWith({ x: 200, y: 160 });
-    expect(element.style.transform).toBe("translate(200px, 160px)");
+    expect(dragTransform(element)).toBe("translate(200px, 160px)");
   });
 
   it("does not jump on first drag when the element has a static base offset", () => {
@@ -197,7 +204,7 @@ describe("useDraggable", () => {
     });
 
     expect(onPositionChange).toHaveBeenLastCalledWith({ x: 130, y: 90 });
-    expect(element.style.transform).toBe("translate(130px, 90px)");
+    expect(dragTransform(element)).toBe("translate(130px, 90px)");
   });
 
   it("identifies every resize edge and clears the cursor over the interior", () => {
@@ -302,17 +309,15 @@ describe("useDraggable", () => {
     expect(onScale).toHaveBeenCalledTimes(2);
   });
 
-  it("recovers two- and three-dimensional transform matrices and clamps on viewport resize", () => {
+  it("recovers externally set drag positions and clamps on viewport resize", () => {
     const onPositionChange = vi.fn();
-    const getComputedStyle = vi.spyOn(window, "getComputedStyle");
-    getComputedStyle.mockReturnValue({
-      transform: "matrix(1, 0, 0, 1, 40, 50)",
-    } as CSSStyleDeclaration);
     act(() => {
       root.render(<DraggableProbe position={{ x: 0, y: 0 }} onPositionChange={onPositionChange} />);
     });
     const element = container.firstElementChild as HTMLElement;
     attachRectStub(element, 160, 120);
+    element.style.setProperty("--drag-x", "40px");
+    element.style.setProperty("--drag-y", "50px");
 
     act(() => {
       element.dispatchEvent(
@@ -325,19 +330,15 @@ describe("useDraggable", () => {
     });
     expect(onPositionChange).toHaveBeenLastCalledWith({ x: 60, y: 80 });
 
-    getComputedStyle.mockReturnValue({
-      transform: "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 900, 700, 0, 1)",
-    } as CSSStyleDeclaration);
+    element.style.setProperty("--drag-x", "900px");
+    element.style.setProperty("--drag-y", "700px");
     act(() => window.dispatchEvent(new Event("resize")));
     expect(onPositionChange).toHaveBeenLastCalledWith({ x: 900, y: 700 });
 
-    getComputedStyle.mockReturnValue({ transform: "matrix3d(1, 2)" } as CSSStyleDeclaration);
+    // Unreadable values fall back to the last known position.
+    element.style.setProperty("--drag-x", "auto");
     act(() => window.dispatchEvent(new Event("resize")));
-    expect(element.style.transform).toBe("translate(900px, 700px)");
-
-    getComputedStyle.mockReturnValue({ transform: "matrix(1, 2)" } as CSSStyleDeclaration);
-    act(() => window.dispatchEvent(new Event("resize")));
-    expect(element.style.transform).toBe("translate(900px, 700px)");
+    expect(dragTransform(element)).toBe("translate(900px, 700px)");
   });
 
   it("keeps windows reachable in tiny viewports and disables desktop gestures on mobile", () => {

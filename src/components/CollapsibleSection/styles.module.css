@@ -1,5 +1,5 @@
 .section {
-  margin-top: 20px;
+  margin-top: var(--space-5);
 }
 
 .header {
@@ -14,7 +14,7 @@
   font-size: 12px;
   user-select: none;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: var(--space-0) var(--space-1);
 }
 
 .content {
@@ -33,12 +33,12 @@
 }
 
 .collapsible.collapsed .content {
-  max-height: 0 !important;
+  max-height: 0;
 }
 
 @media (max-width: 960px) {
   .section {
-    margin-top: 12px;
+    margin-top: var(--space-3);
   }
 
   .toggle {
@@ -54,6 +54,6 @@
   }
 
   .collapsed .content {
-    max-height: 0 !important;
+    max-height: 0;
   }
 }

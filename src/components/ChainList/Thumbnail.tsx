@@ -201,12 +201,7 @@ export const Thumbnail = ({ cacheKey, chain, filterByName, source }: Props) => {
   const pendingUrl = useMemo(() => (source ? placeholderUrl(source) : ""), [source]);
 
   return (
-    <div
-      ref={wrapperRef}
-      className={s.thumbnail}
-      data-loaded={rendered ? "true" : "false"}
-      style={{ width: THUMB_W, height: THUMB_H }}
-    >
+    <div ref={wrapperRef} className={s.thumbnail} data-loaded={rendered ? "true" : "false"}>
       {rendered ? (
         <img src={dataUrl} width={THUMB_W} height={THUMB_H} alt="" draggable={false} />
       ) : pendingUrl ? (

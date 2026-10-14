@@ -44,11 +44,16 @@
   --control-height: 24px;
   --control-height-lg: 30px;
   --control-font-size: 12px;
+  /* Title-bar window buttons (close) are smaller than body controls. */
+  --titlebar-button-size: 20px;
   /* Fields and selects; phones need 16px or iOS zooms in on focus. */
   --field-font-size: 12px;
+  --space-0: 2px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
 }
 
 @media (max-width: 960px) {
@@ -57,6 +62,7 @@
     --control-height-lg: 44px;
     --control-font-size: 14px;
     --field-font-size: 16px;
+    --titlebar-button-size: 44px;
   }
 }
 
@@ -198,13 +204,18 @@ body {
   margin: 0;
 }
 
+/* Reduced motion must win over every component animation and transition. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: user motion preference overrides components */
     scroll-behavior: auto !important;
+    /* biome-ignore lint/complexity/noImportantStyles: user motion preference overrides components */
     animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: user motion preference overrides components */
     animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: user motion preference overrides components */
     transition-duration: 0.01ms !important;
   }
 }
@@ -219,6 +230,7 @@ a {
 }
 
 body[style*="cursor: wait"] * {
+  /* biome-ignore lint/complexity/noImportantStyles: the busy cursor must replace every element cursor */
   cursor: wait !important;
 }
 
@@ -234,6 +246,25 @@ body[style*="cursor: wait"] * {
   }
 }
 
+/* Use the system UI face everywhere. 98.css's pixel outline font with
+   smoothing disabled looks fake once the browser antialiases it. */
+body,
+button,
+input,
+select,
+textarea,
+label,
+legend,
+option,
+table,
+li[role="tab"],
+ul.tree-view,
+.title-bar,
+.window {
+  font-family: Tahoma, Arial, sans-serif;
+  -webkit-font-smoothing: auto;
+}
+
 /* The app contains wrapped checkbox labels as well as adjacent labels.
    Keep native inputs visible until each surface adopts the system markup. */
 input[type="checkbox"],
@@ -241,7 +272,7 @@ input[type="radio"] {
   appearance: auto;
   position: static;
   opacity: 1;
-  margin: 0 4px 0 0;
+  margin: 0 var(--space-1) 0 0;
 }
 
 /* Adapt 98.css checkbox geometry for both wrapped and adjacent labels. */
@@ -318,12 +349,12 @@ select {
   box-sizing: border-box;
   height: var(--control-height);
   min-height: var(--control-height);
-  padding: 2px 6px;
+  padding: var(--space-0) var(--space-2);
   line-height: normal;
 }
 
 :where(select) {
-  padding-right: 24px;
+  padding-right: var(--space-5);
 }
 
 :where(button) {
@@ -338,23 +369,4 @@ select {
 ):focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
-}
-
-/* Use the system UI face everywhere. 98.css's pixel outline font with
-   smoothing disabled looks fake once the browser antialiases it. */
-body,
-button,
-input,
-select,
-textarea,
-label,
-legend,
-option,
-table,
-li[role="tab"],
-ul.tree-view,
-.title-bar,
-.window {
-  font-family: Tahoma, Arial, sans-serif;
-  -webkit-font-smoothing: auto;
 }

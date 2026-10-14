@@ -18,7 +18,7 @@
 }
 
 .body {
-  padding: 12px;
+  padding: var(--space-3);
 }
 
 .body input,
@@ -26,7 +26,7 @@
   width: 100%;
   box-sizing: border-box;
   border: 2px inset #ccc;
-  padding: 5px;
+  padding: var(--space-1);
   font-family: inherit;
   font-size: 14px;
 }
@@ -39,13 +39,13 @@
 .buttons {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
-  margin-top: 10px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .buttons button {
   min-width: 70px;
-  padding: 4px 12px;
+  padding: var(--space-1) var(--space-3);
   background-color: var(--light-gray);
   border-left: 2px outset white;
   border-top: 2px outset white;
@@ -81,7 +81,7 @@
 }
 
 .copyFeedback {
-  margin: 8px 0 0;
+  margin: var(--space-2) 0 0;
   color: var(--button-text);
   font-size: 12px;
 }

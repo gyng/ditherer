@@ -1640,7 +1640,6 @@ const App = () => {
   const canvasWindowPositionsSeededRef = useRef(false);
   const inputDragRef = useRef(null);
   const outputDragRef = useRef(null);
-  const saveAsDragRef = useRef(null);
   const dragScaleStart = useRef({ input: 1, output: 1 });
   const hasLoadedTestImageRef = useRef(false);
   const hasLoadedTestVideoRef = useRef(false);
@@ -1761,7 +1760,6 @@ const App = () => {
       actions.setOutputScale(Math.round(newScale * 100) / 100);
     },
   });
-  const saveAsDrag = useDraggable(saveAsDragRef, { defaultPosition: { x: 160, y: 400 } });
   const screensaverDrag = useDraggable(screensaverDialogRef, {
     defaultPosition: screensaverDialogPosition,
     onPositionChange: setScreensaverDialogPosition,
@@ -4950,9 +4948,12 @@ const App = () => {
                 title="Screensaver settings"
                 onClose={() => setShowScreensaverDialog(false)}
                 className={s.screensaverFloat}
-                style={{
-                  transform: `translate(${screensaverDialogPosition.x}px, ${screensaverDialogPosition.y}px)`,
-                }}
+                style={
+                  {
+                    "--drag-x": `${screensaverDialogPosition.x}px`,
+                    "--drag-y": `${screensaverDialogPosition.y}px`,
+                  } as React.CSSProperties
+                }
                 onMouseDownCapture={bringToTop}
                 onMouseDown={(e) => {
                   e.stopPropagation();
@@ -5052,9 +5053,12 @@ const App = () => {
                     : "Chain audio visualizer settings"
                 }
                 className={s.audioModFloat}
-                style={{
-                  transform: `translate(${audioEditorPosition.x}px, ${audioEditorPosition.y}px)`,
-                }}
+                style={
+                  {
+                    "--drag-x": `${audioEditorPosition.x}px`,
+                    "--drag-y": `${audioEditorPosition.y}px`,
+                  } as React.CSSProperties
+                }
                 onMouseDownCapture={bringToTop}
                 onMouseMove={audioEditorDrag.onMouseMove}
               >
@@ -5228,16 +5232,10 @@ const App = () => {
             </div>
           )}
         </div>
+        {/* Save As is a centered modal; it is not draggable. */}
         <div
           className={s.dialogHost}
-          ref={saveAsDragRef}
           role="presentation"
-          onMouseDown={(e) => {
-            const target = e.target as HTMLElement | null;
-            if (!target?.closest(".handle")) return;
-            saveAsDrag.onMouseDown(e);
-          }}
-          onMouseMove={saveAsDrag.onMouseMove}
           style={showSaveAs ? undefined : { display: "none" }}
         >
           {showSaveAs && (

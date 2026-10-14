@@ -67,14 +67,14 @@
      the later workspace sibling so their full-screen overlays remain usable. */
   z-index: 200;
   width: clamp(336px, 24vw, 380px);
-  padding: 10px 12px 12px;
+  padding: var(--space-2) var(--space-3) var(--space-3);
   border-right: 2px outset var(--button-highlight);
   box-shadow: 2px 0 0 rgba(0, 0, 0, 0.22);
 }
 
 .appIdentity {
-  margin: -7px -9px 8px;
-  padding: 2px;
+  margin: -7px -9px var(--space-2);
+  padding: var(--space-0);
   border: 2px outset var(--button-highlight);
   background: var(--light-gray);
   box-shadow: 1px 1px 0 var(--button-dk-shadow);
@@ -83,9 +83,9 @@
 .appIdentityTitleBar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-height: 23px;
-  padding: 2px 4px;
+  padding: var(--space-0) var(--space-1);
   background: linear-gradient(90deg, var(--beautiful-blue), var(--beautiful-blue-gradient));
   color: #fff;
 }
@@ -116,8 +116,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 4px 5px 3px;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1);
   color: #333;
   font:
     bold 9px/1.2 "Courier New",
@@ -127,8 +127,8 @@
 
 .modeSwitcher {
   display: inline-flex;
-  gap: 2px;
-  padding: 2px;
+  gap: var(--space-0);
+  padding: var(--space-0);
   background: #9c9c9c;
   border: 1px solid var(--button-dk-shadow);
   box-shadow: inset 1px 1px var(--button-shadow);
@@ -147,10 +147,9 @@
 }
 
 .modeButton[aria-pressed="true"] {
-  border-style: inset;
   background: var(--beautiful-blue);
   color: var(--selection-text);
-  box-shadow: none;
+  box-shadow: var(--chrome-pressed);
 }
 
 .modeHint {
@@ -174,7 +173,7 @@
 
 /* Match the gap above Compose's first collapsible section. */
 .sourceTask > h2 {
-  margin-top: 20px;
+  margin-top: var(--space-5);
 }
 
 .workspace {
@@ -217,8 +216,8 @@
   align-items: center;
   /* Groups wrap whole onto a second row rather than clipping buttons. */
   flex-wrap: wrap;
-  gap: 6px 12px;
-  padding: 5px 7px;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   background: linear-gradient(#d4d4d4, var(--light-gray));
   border-bottom: 2px outset var(--button-highlight);
   box-shadow: 0 1px 0 var(--button-dk-shadow);
@@ -229,11 +228,11 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .toolbarLabel {
-  margin-right: 3px;
+  margin-right: var(--space-1);
   color: var(--muted-text);
   font-size: 9px;
   font-weight: bold;
@@ -246,7 +245,7 @@
 .exportTools button {
   min-height: var(--control-height);
   margin: 0;
-  padding: 0 8px;
+  padding: 0 var(--space-2);
   white-space: nowrap;
 }
 
@@ -254,8 +253,8 @@
 .tabStrip {
   display: flex;
   align-items: stretch;
-  gap: 2px;
-  padding: 4px 6px 0;
+  gap: var(--space-0);
+  padding: var(--space-1) var(--space-2) 0;
   background: linear-gradient(var(--light-gray), #a9a9a9);
   border-bottom: 1px solid var(--button-dk-shadow);
 }
@@ -265,11 +264,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
-  min-height: 26px;
+  min-height: var(--control-height-lg);
   margin: 0;
-  padding: 4px;
+  padding: var(--space-1);
   font-weight: bold;
   white-space: nowrap;
   border: 2px outset var(--button-highlight);
@@ -321,14 +320,14 @@
 .toolGroup {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .toolDivider {
   flex: 0 0 auto;
   align-self: stretch;
   width: 0;
-  margin: 2px 5px;
+  margin: var(--space-0) var(--space-1);
   border-left: 1px solid var(--button-shadow);
   border-right: 1px solid var(--button-highlight);
 }
@@ -338,13 +337,9 @@
   display: flex;
 }
 
-.segmented > button + button {
-  margin-left: -1px;
-}
-
 .toolKbd {
-  margin-left: 4px;
-  padding: 0 4px;
+  margin-left: var(--space-1);
+  padding: 0 var(--space-1);
   border: 1px solid var(--button-shadow);
   background: var(--window-bg);
   color: var(--muted-text);
@@ -362,24 +357,23 @@
 }
 
 .layoutTools button {
-  padding-inline: 6px;
+  padding-inline: var(--space-2);
 }
 
 .workspaceToolbar button[aria-pressed="true"] {
-  border-style: inset;
   background: #edf3fb;
   color: #00145e;
-  box-shadow: none;
+  box-shadow: var(--chrome-pressed);
 }
 
 .workspaceStatus {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 8px;
+  gap: var(--space-1) var(--space-2);
   min-height: 25px;
   box-sizing: border-box;
-  padding: 3px 9px;
+  padding: var(--space-1) var(--space-2);
   background: #292d30;
   color: #d8dfdf;
   border-bottom: 1px solid #0f1112;
@@ -393,10 +387,10 @@
 .statusMode {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
   color: #ffdca2;
   font-weight: bold;
-  padding-right: 8px;
+  padding-right: var(--space-2);
   border-right: 1px solid #62696d;
 }
 
@@ -419,7 +413,7 @@
 }
 
 .statusMetric {
-  padding: 1px 7px 1px 0;
+  padding: 1px var(--space-2) 1px 0;
   border-right: 1px solid #50575b;
   white-space: nowrap;
 }
@@ -427,10 +421,10 @@
 .taskProgress {
   display: grid;
   grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  gap: 5px;
+  gap: var(--space-1);
   align-items: center;
-  margin: 11px 0 2px;
-  padding-top: 8px;
+  margin: var(--space-3) 0 var(--space-0);
+  padding-top: var(--space-2);
   border-top: 1px solid #8b8b8b;
 }
 
@@ -467,7 +461,7 @@
 .inputTweakRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 6px;
+  gap: var(--space-2);
   align-items: stretch;
 }
 
@@ -481,7 +475,7 @@
 
 .videoControlRow {
   display: flex;
-  gap: 4px;
+  gap: var(--space-1);
   align-items: center;
   flex-wrap: wrap;
 }
@@ -489,14 +483,14 @@
 .videoSeekRow {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
 }
 
 .videoRateInline {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -519,7 +513,7 @@
 
 .videoFrameStep {
   min-width: 24px;
-  padding: 2px 6px;
+  padding: var(--space-0) var(--space-2);
   line-height: 1;
 }
 
@@ -545,18 +539,18 @@
 }
 
 .chrome .copyButton {
-  margin-top: 10px;
+  margin-top: var(--space-2);
 }
 
 .chrome .section:not(:first-child) {
-  margin-top: 20px;
+  margin-top: var(--space-5);
 }
 
 .chrome .perfStats {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 0;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
   font-size: 11px;
   font-family: monospace;
   color: #444;
@@ -593,15 +587,15 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  padding-top: 8px;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
 }
 
 .chrome .github a {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
-  padding-inline: 2px;
+  padding-inline: var(--space-0);
 }
 
 .webMCPBadgeWrap {
@@ -612,9 +606,9 @@
 .webMCPBadge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-height: 18px;
-  padding: 1px 5px 1px 4px;
+  padding: 1px var(--space-1) 1px var(--space-1);
   border: 1px solid #777;
   background: #d7d7d7;
   box-shadow: 1px 1px 0 #fff;
@@ -664,7 +658,7 @@
 }
 
 .webMCPBadgeCount {
-  padding-left: 4px;
+  padding-left: var(--space-1);
   border-left: 1px solid currentColor;
   font-variant-numeric: tabular-nums;
   opacity: 0.78;
@@ -676,7 +670,7 @@
   left: 0;
   bottom: calc(100% + 6px);
   width: min(280px, calc(100vw - 32px));
-  padding: 7px 8px;
+  padding: var(--space-2) var(--space-2);
   border: 2px outset var(--button-highlight);
   background: #ffffe1;
   color: #222;
@@ -697,17 +691,17 @@
 .filterDescription {
   font-size: 11px;
   color: #555;
-  margin-top: 3px;
+  margin-top: var(--space-1);
   line-height: 1.3;
   min-height: 2.6em;
 }
 
 .filterBar {
-  margin-top: 10px;
+  margin-top: var(--space-2);
 }
 
 .applyStatus {
-  margin-top: 4px;
+  margin-top: var(--space-1);
   min-height: 1.3em;
   color: #333;
   font-size: 11px;
@@ -724,9 +718,9 @@
 
 .filterInspectorHeader {
   display: grid;
-  gap: 2px;
-  margin-bottom: 7px;
-  padding: 7px 8px;
+  gap: var(--space-0);
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-2);
   border-left: 4px solid var(--beautiful-blue);
   background: #e3e8ef;
   color: var(--button-text);
@@ -759,9 +753,9 @@
 .inspectorActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
-  margin-top: 7px;
-  padding-top: 6px;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
   border-top: 1px solid var(--separator-bottom);
 }
 
@@ -772,15 +766,15 @@
 
 .browseLooksButton {
   width: 100%;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   font-weight: bold;
 }
 
 .signalPanel {
   display: grid;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 8px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2);
   border: 2px inset var(--panel-soft-border);
   border-left: 5px solid var(--beautiful-blue);
   background: var(--panel-soft);
@@ -801,7 +795,7 @@
 .slideshowActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--space-2);
   align-items: center;
 }
 
@@ -814,7 +808,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .themeSelect {
@@ -834,7 +828,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 3px 4px;
+  padding: var(--space-1) var(--space-1);
   background: linear-gradient(90deg, var(--beautiful-blue), var(--beautiful-blue-gradient));
 }
 
@@ -846,9 +840,9 @@
 .commandList {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0);
   min-height: 0;
-  padding: 0 8px 8px;
+  padding: 0 var(--space-2) var(--space-2);
   overflow: auto;
 }
 
@@ -856,10 +850,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  min-height: 38px;
+  gap: var(--space-3);
+  min-height: var(--control-height-lg);
   margin: 0;
-  padding: 5px 8px;
+  padding: var(--space-1) var(--space-2);
   text-align: left;
 }
 
@@ -869,14 +863,14 @@
   border-color: #fff #000 #000 #fff;
 }
 
-.commandList .commandActive kbd {
-  color: #fff;
-}
-
 .commandList kbd {
   color: #444;
   font-size: 10px;
   white-space: nowrap;
+}
+
+.commandList .commandActive kbd {
+  color: #fff;
 }
 
 .sourceFileInput {
@@ -891,11 +885,6 @@
   border: 0;
 }
 
-.sourceFileInput:focus-visible + .mediaPickerBody {
-  outline: 2px dotted var(--focus-ring);
-  outline-offset: 2px;
-}
-
 .mediaSourceGroup {
   position: relative;
 }
@@ -904,13 +893,18 @@
   display: grid;
   grid-template-columns: minmax(132px, auto) minmax(0, 1fr);
   align-items: center;
-  gap: 9px;
+  gap: var(--space-2);
   margin: -5px 1px 1px;
-  padding: 9px;
+  padding: var(--space-2);
   border: 2px inset var(--input-border);
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(235, 241, 246, 0.88)),
     repeating-linear-gradient(45deg, transparent 0 6px, rgba(0, 0, 0, 0.025) 6px 7px);
+}
+
+.sourceFileInput:focus-visible + .mediaPickerBody {
+  outline: 2px dotted var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .mediaPickerButton {
@@ -922,7 +916,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 2px;
+  gap: var(--space-0);
 }
 
 .mediaPickerCopy strong {
@@ -941,7 +935,7 @@
 
 .testMediaToolbar {
   display: flex;
-  gap: 3px;
+  gap: var(--space-1);
   align-items: center;
   margin-top: -6px;
   min-width: 0;
@@ -958,7 +952,7 @@
   border: none;
   box-shadow: var(--chrome-raised);
   color: var(--button-text);
-  padding: 0 24px 0 var(--space-2);
+  padding: 0 var(--space-5) 0 var(--space-2);
   margin: 1px;
   font-family: inherit;
   width: auto;
@@ -979,7 +973,7 @@
 }
 
 .testMediaToolbar > :nth-child(2) {
-  margin-right: 7px;
+  margin-right: var(--space-2);
 }
 
 /* Win95-style menu bar below title bar */
@@ -987,9 +981,9 @@
   background: var(--light-gray, #c0c0c0);
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0);
   flex-wrap: wrap;
-  padding: 1px 2px;
+  padding: 1px var(--space-0);
   border-bottom: 1px solid var(--button-shadow, #808080);
 }
 
@@ -997,7 +991,7 @@
   background: none;
   border: 1px solid transparent;
   min-height: var(--control-height);
-  padding: 0 6px;
+  padding: 0 var(--space-2);
   font-family: inherit;
   cursor: pointer;
   color: var(--button-text, black);
@@ -1028,7 +1022,7 @@
 .menuSelectWrap {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   border: 1px solid transparent;
   padding: 1px;
   margin: 0;
@@ -1049,7 +1043,7 @@
   border-top: 1px solid #ffffff;
   border-right: 1px solid #404040;
   border-bottom: 1px solid #404040;
-  padding: 1px 22px 1px 4px;
+  padding: 1px var(--space-5) 1px var(--space-1);
   height: var(--control-height);
   box-sizing: border-box;
 }
@@ -1065,7 +1059,7 @@
   display: flex;
   flex-direction: column;
   min-width: 108px;
-  padding: 2px;
+  padding: var(--space-0);
   background: var(--light-gray, #c0c0c0);
   border-left: 2px outset var(--button-highlight);
   border-top: 2px outset var(--button-highlight);
@@ -1081,7 +1075,7 @@
   box-shadow: none;
   margin: 0;
   min-height: 22px;
-  padding: 2px 8px;
+  padding: var(--space-0) var(--space-2);
   text-align: left;
   font-size: 12px;
   font-family: inherit;
@@ -1116,7 +1110,7 @@
   border-bottom: 1px solid #404040;
   font-size: 11px;
   line-height: 1;
-  padding: 1px 3px;
+  padding: 1px var(--space-1);
   min-height: unset;
   cursor: pointer;
   color: black;
@@ -1143,9 +1137,10 @@
 .canvasesFloating .canvasWindow {
   background-color: var(--light-gray);
   position: fixed;
+  transform: translate(var(--drag-x, 0px), var(--drag-y, 0px));
   top: 0;
   left: 0;
-  margin: 10px;
+  margin: var(--space-2);
   display: table;
   grid-column: 1;
   grid-row: 1;
@@ -1155,14 +1150,12 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 12px;
-  padding: 12px;
+  gap: var(--space-3);
+  padding: var(--space-3);
   box-sizing: border-box;
 }
 
 .canvasesDocked .canvasWindow {
-  position: static !important;
-  transform: none !important;
   display: block;
   min-width: 0;
   margin: 0;
@@ -1180,6 +1173,18 @@
 .canvasesDocked .canvas {
   max-width: 100%;
   height: auto;
+}
+
+.outputCanvasStage {
+  display: flex;
+  position: relative;
+  overflow: auto;
+}
+
+.canvasArea {
+  position: relative;
+  min-height: 174px;
+  flex: 1;
 }
 
 .canvasesDocked .canvasArea,
@@ -1229,12 +1234,6 @@
   flex-direction: column;
 }
 
-.outputCanvasStage {
-  display: flex;
-  position: relative;
-  overflow: auto;
-}
-
 .comparisonCanvas {
   position: absolute;
   inset: 0 auto auto 0;
@@ -1264,8 +1263,8 @@
   z-index: 4;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 6px;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
   background: rgba(192, 192, 192, 0.94);
   border: 2px outset #fff;
   font-size: 11px;
@@ -1279,7 +1278,7 @@
   display: flex;
   flex: 1;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -1287,20 +1286,19 @@
   flex: 0 0 auto;
   min-height: var(--control-height);
   margin: 0;
-  padding: 2px 8px;
+  padding: var(--space-0) var(--space-2);
 }
 
 .comparisonControl button[aria-pressed="true"] {
-  border-style: inset;
   background: #fff;
+  box-shadow: var(--chrome-pressed);
 }
 
 .dialogHost {
-  position: fixed !important;
+  position: fixed;
   inset: 0;
   z-index: 10010;
-  margin: 0 !important;
-  transform: none !important;
+  margin: 0;
 }
 
 .dialogOverlay {
@@ -1321,6 +1319,7 @@
 
 .outputWindowFullscreenCursorHidden,
 .outputWindowFullscreenCursorHidden * {
+  /* biome-ignore lint/complexity/noImportantStyles: idle fullscreen hides every element cursor */
   cursor: none !important;
 }
 
@@ -1362,6 +1361,7 @@
   top: 0;
   left: 0;
   z-index: 10001;
+  transform: translate(var(--drag-x, 0px), var(--drag-y, 0px));
 }
 
 .screensaverDialog {
@@ -1376,7 +1376,7 @@
 .screensaverColumns {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.2fr);
-  gap: 12px;
+  gap: var(--space-3);
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -1385,7 +1385,7 @@
 .screensaverColumnRight {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--space-2);
   min-width: 0;
   min-height: 0;
 }
@@ -1416,8 +1416,8 @@
   justify-content: space-between;
   background: linear-gradient(90deg, var(--beautiful-blue), var(--beautiful-blue-gradient));
   color: #fff;
-  padding: 3px 4px;
-  margin: 2px;
+  padding: var(--space-1) var(--space-1);
+  margin: var(--space-0);
   font-size: 12px;
   font-weight: bold;
   cursor: move;
@@ -1431,15 +1431,15 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  gap: 10px;
-  padding: 14px 18px 8px;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-2);
   overflow: auto;
 }
 
 .screensaverField {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: 12px;
   color: #000;
   text-align: left;
@@ -1451,7 +1451,7 @@
   width: 100%;
   box-sizing: border-box;
   border: 2px inset #ccc;
-  padding: 5px;
+  padding: var(--space-1);
   font: inherit;
   background: #fff;
   color: #000;
@@ -1460,14 +1460,14 @@
 .screensaverCheck {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   font-size: 12px;
   color: #000;
 }
 
 .screensaverFieldRow {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: flex-end;
 }
 
@@ -1479,7 +1479,7 @@
 .screensaverRadioOption {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   cursor: pointer;
   font-size: 12px;
   color: #000;
@@ -1493,13 +1493,13 @@
 .screensaverRadioRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
+  gap: var(--space-1) var(--space-4);
   align-items: center;
 }
 
 /* Compose with controls.subsectionHeader for canonical typography. */
 .screensaverSubgroupLabel {
-  margin-top: 2px;
+  margin-top: var(--space-0);
 }
 
 .screensaverHint {
@@ -1512,8 +1512,8 @@
   display: flex;
   flex: 0 0 auto;
   justify-content: flex-start;
-  gap: 6px;
-  padding: 8px 18px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
 }
 
 .screensaverButton {
@@ -1522,9 +1522,9 @@
 
 .optionActionRow {
   display: flex;
-  gap: 6px;
+  gap: var(--space-2);
   flex-wrap: wrap;
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 
 .audioModDialog {
@@ -1541,6 +1541,7 @@
   top: 0;
   left: 0;
   z-index: 10002;
+  transform: translate(var(--drag-x, 0px), var(--drag-y, 0px));
 }
 
 .audioModBody {
@@ -1548,8 +1549,8 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  gap: 10px;
-  padding: 14px 18px 8px;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-4) var(--space-2);
   position: relative;
   z-index: 1;
   overflow: auto;
@@ -1561,8 +1562,8 @@
   z-index: 8;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 10px 0;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) 0;
   background: linear-gradient(180deg, rgba(199, 199, 199, 0.98), rgba(199, 199, 199, 0.92));
   pointer-events: auto;
 }
@@ -1580,7 +1581,7 @@
 
 .audioPatchToolbarButton {
   min-height: var(--control-height);
-  padding: 2px 8px;
+  padding: var(--space-0) var(--space-2);
   white-space: nowrap;
 }
 
@@ -1589,7 +1590,7 @@
   align-items: center;
   flex-wrap: wrap;
   min-width: 0;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: 11px;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -1608,8 +1609,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 6px 10px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2);
   background: rgba(199, 199, 199, 0.95);
   border-bottom: 1px solid rgba(0, 0, 0, 0.18);
   font-size: 11px;
@@ -1618,7 +1619,7 @@
 .audioPatchToolbarDensity {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   flex: 1 1 220px;
   min-width: 180px;
 }
@@ -1656,14 +1657,14 @@
   z-index: 9;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
-  padding: 8px 10px 0;
+  padding: var(--space-2) var(--space-2) 0;
 }
 
 .audioPatchCollapse {
   min-height: 24px;
-  padding: 2px 8px;
+  padding: var(--space-0) var(--space-2);
   text-align: left;
   white-space: nowrap;
 }
@@ -1684,8 +1685,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
   column-gap: clamp(36px, 18%, 160px);
-  row-gap: 6px;
-  padding: 10px;
+  row-gap: var(--space-2);
+  padding: var(--space-2);
   width: 100%;
   box-sizing: border-box;
   pointer-events: none;
@@ -1695,31 +1696,31 @@
 .audioPatchRight {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .audioPatchSection {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
   pointer-events: auto;
 }
 
 .audioPatchSectionHeader {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 6px;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
   background: rgba(0, 0, 0, 0.05);
   border: 1px solid rgba(0, 0, 0, 0.12);
-  font: inherit;
-  font-size: 11px;
+  font-family: inherit;
+  font-size: var(--control-font-size);
   color: #333;
   cursor: pointer;
   text-align: left;
   margin: 0;
-  min-height: 0;
+  min-height: var(--control-height);
   pointer-events: auto;
 }
 
@@ -1762,8 +1763,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2);
   border-left: 2px solid #fff;
   border-top: 2px solid #fff;
   border-right: 2px solid #5f5f5f;
@@ -1812,8 +1813,8 @@
   align-items: center;
   grid-template-columns: minmax(0, 1fr) auto 24px;
   grid-template-rows: auto auto auto;
-  column-gap: 6px;
-  row-gap: 3px;
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
   width: 100%;
   min-width: 0;
 }
@@ -1921,7 +1922,7 @@
   grid-row: 4;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-width: 0;
   font-size: 10px;
   color: #3c4d58;
@@ -1933,7 +1934,7 @@
   grid-row: 5;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
@@ -1947,7 +1948,7 @@
   justify-content: center;
   width: 14px;
   height: 14px;
-  margin-left: 6px;
+  margin-left: var(--space-2);
   border-radius: 50%;
   font-size: 10px;
   font-weight: bold;
@@ -1974,7 +1975,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -1986,7 +1987,7 @@
 
 .audioPatchBpmSliderValue {
   margin-left: auto;
-  margin-right: 4px;
+  margin-right: var(--space-1);
 }
 
 .audioPatchBpmToggle {
@@ -1997,7 +1998,7 @@
   min-height: var(--control-height);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: 10px;
   white-space: nowrap;
 }
@@ -2027,7 +2028,7 @@
 .audioPatchTarget {
   min-height: 58px;
   align-items: center;
-  padding: 8px 10px;
+  padding: var(--space-2) var(--space-2);
 }
 
 .audioPatchTargetBody {
@@ -2035,7 +2036,7 @@
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .audioPatchTargetPreview {
@@ -2119,12 +2120,6 @@
   flex: 0 0 auto;
 }
 
-.canvasArea {
-  position: relative;
-  min-height: 174px;
-  flex: 1;
-}
-
 .playPauseOverlay {
   position: absolute;
   top: 8px;
@@ -2158,9 +2153,9 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
-  margin-top: 6px;
-  padding: 6px 8px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-2);
   border: 1px solid #8b1f1f;
   background: #ffe8e8;
   color: #5f1111;
@@ -2171,7 +2166,7 @@
 .inputError button {
   flex: 0 0 auto;
   min-height: var(--control-height);
-  padding: 2px 6px;
+  padding: var(--space-0) var(--space-2);
 }
 
 .dropPlaceholder {
@@ -2193,7 +2188,7 @@
 
 @media (max-width: 960px) {
   .filterInspectorHeader {
-    padding: 9px 10px;
+    padding: var(--space-2) var(--space-2);
   }
 
   .filterInspectorTitle {
@@ -2222,44 +2217,12 @@
     position: static;
     width: 100%;
     min-width: unset;
-    padding: 8px;
+    padding: var(--space-2);
     max-height: none;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
-  }
-
-  /* On mobile the preview/export steps give the canvas the screen, but the
-     workflow tabs now live in the sidebar — keep just the tab strip so the
-     user can still navigate back. */
-  .app[data-active-task="preview"] .chrome,
-  .app[data-active-task="export"] .chrome {
-    order: 0;
-    flex: 0 0 auto;
-    overflow: visible;
-    padding: 0;
-  }
-
-  .app[data-active-task="preview"] .chrome > *:not(.tabStrip),
-  .app[data-active-task="export"] .chrome > *:not(.tabStrip) {
-    display: none;
-  }
-
-  .app[data-active-task="source"] .canvases,
-  .app[data-active-task="compose"] .canvases,
-  .app[data-active-task="export"] .canvases {
-    display: contents;
-  }
-
-  .app[data-active-task="source"] .canvases > .canvasWindow,
-  .app[data-active-task="compose"] .canvases > .canvasWindow,
-  .app[data-active-task="export"] .canvases > .canvasWindow {
-    display: none !important;
-  }
-
-  .app[data-active-task="preview"] .inputCanvasWindow {
-    display: none !important;
   }
 
   .workspace {
@@ -2269,17 +2232,10 @@
     width: 100%;
   }
 
-  .app[data-active-task="preview"] .workspace,
-  .app[data-active-task="export"] .workspace {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-  }
-
   .workspaceToolbar {
     position: sticky;
     top: 0;
-    padding: 4px;
+    padding: var(--space-1);
     display: flex;
     overflow-x: auto;
     flex-wrap: nowrap;
@@ -2293,14 +2249,14 @@
   .tabStrip {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 2px;
-    padding: 4px;
+    gap: var(--space-0);
+    padding: var(--space-1);
   }
 
   .tabStrip .tab {
     min-width: 0;
     min-height: 44px;
-    padding-inline: 3px;
+    padding-inline: var(--space-1);
     font-size: 12px;
     justify-content: center;
     border-radius: 4px;
@@ -2329,8 +2285,8 @@
     min-height: 22px;
     flex-wrap: nowrap;
     overflow-x: auto;
-    gap: 6px;
-    padding-inline: 7px;
+    gap: var(--space-2);
+    padding-inline: var(--space-2);
   }
 
   /* Phone status keeps the counts and frame rate; the wording and ms go. */
@@ -2347,15 +2303,15 @@
   }
 
   .chrome h1 {
-    margin: 0 0 2px;
+    margin: 0 0 var(--space-0);
   }
 
   .chrome h2 {
-    margin: 0 0 3px;
+    margin: 0 0 var(--space-1);
   }
 
   .chrome .filterButton {
-    padding: 10px 12px;
+    padding: var(--space-2) var(--space-3);
   }
 
   .canvases {
@@ -2365,73 +2321,20 @@
   }
 
   .canvases .canvasWindow {
-    position: static !important;
-    transform: none !important;
+    position: static;
+    transform: none;
     display: block;
-    margin: 4px 0;
+    margin: var(--space-1) 0;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
     overflow: hidden;
   }
 
-  .app[data-active-task="preview"] .canvases,
-  .app[data-active-task="preview"] .outputCanvasWindow,
-  .app[data-active-task="preview"] .outputCanvasWindow > .outputWindow {
-    min-height: 0;
-    height: 100%;
-  }
-
-  .app[data-active-task="preview"] .canvases {
-    flex: 1 1 auto;
-  }
-
-  .app[data-active-task="preview"] .outputCanvasWindow {
-    margin: 0;
-  }
-
-  .app[data-active-task="preview"] .outputWindow > .windowChrome {
-    flex: 0 0 auto;
-  }
-
-  .app[data-active-task="preview"] .outputCanvasStage {
-    flex: 1 1 auto;
-    min-height: 0;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .app[data-active-task="preview"] .outputCanvasStage .canvas {
-    max-height: 100%;
-    object-fit: contain;
-  }
-
-  .app[data-active-task="preview"] .menuBar {
-    flex: 0 0 auto;
-    flex-wrap: nowrap;
-    overflow: visible;
-  }
-
-  .app[data-active-task="preview"] .menuBar > * {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
-  .app[data-active-task="preview"] .menuItem,
-  .app[data-active-task="preview"] .menuSelect {
-    width: 100%;
-    padding-inline: 4px;
-    font-size: 12px;
-  }
-
-  .app[data-active-task="preview"] .menuPopupWrap > .menuItem {
-    width: 100%;
-  }
-
   .screensaverFloat,
   .audioModFloat {
     inset: 0;
-    transform: none !important;
+    transform: none;
     width: 100%;
     height: 100%;
   }
@@ -2481,10 +2384,10 @@
     position: sticky;
     bottom: 0;
     background: var(--light-gray);
-    padding: 6px 0 4px;
+    padding: var(--space-2) 0 var(--space-1);
     z-index: 10;
     border-top: 1px solid #808080;
-    margin-top: 6px;
+    margin-top: var(--space-2);
   }
 
   .filterBar .filterButton {
@@ -2498,7 +2401,7 @@
 
   .titleBarBtn {
     min-height: 44px;
-    padding: 2px 6px;
+    padding: var(--space-0) var(--space-2);
     font-size: 14px;
   }
 
@@ -2514,7 +2417,7 @@
 
   .menuItem {
     min-height: 44px;
-    padding: 4px 12px;
+    padding: var(--space-1) var(--space-3);
     font-size: 14px;
   }
 
@@ -2535,7 +2438,7 @@
   .testMediaToolbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
-    gap: 2px;
+    gap: var(--space-0);
     margin-top: -7px;
   }
 
@@ -2547,14 +2450,14 @@
     width: 100%;
     min-width: 0;
     min-height: 44px;
-    padding: 2px 6px;
+    padding: var(--space-0) var(--space-2);
   }
 
   .testMediaButton {
     width: 44px;
     min-width: 44px;
     min-height: 44px;
-    padding: 2px 6px;
+    padding: var(--space-0) var(--space-2);
   }
 
   .chrome .github a,
@@ -2566,7 +2469,7 @@
   .chrome .github a {
     display: inline-flex;
     align-items: center;
-    padding-inline: 4px;
+    padding-inline: var(--space-1);
   }
 
   .taskProgress button {
@@ -2575,11 +2478,105 @@
 
   .videoControlRow {
     flex-wrap: wrap;
-    row-gap: 2px;
+    row-gap: var(--space-0);
   }
 
   .videoSeekMeta {
     font-size: 10px;
+  }
+
+  /* Per-step overrides last: they refine the generic phone rules above. */
+
+  /* On mobile the preview/export steps give the canvas the screen, but the
+     workflow tabs now live in the sidebar — keep just the tab strip so the
+     user can still navigate back. */
+  .app[data-active-task="preview"] .chrome,
+  .app[data-active-task="export"] .chrome {
+    order: 0;
+    flex: 0 0 auto;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .app[data-active-task="preview"] .chrome > *:not(.tabStrip),
+  .app[data-active-task="export"] .chrome > *:not(.tabStrip) {
+    display: none;
+  }
+
+  .app[data-active-task="source"] .canvases,
+  .app[data-active-task="compose"] .canvases,
+  .app[data-active-task="export"] .canvases {
+    display: contents;
+  }
+
+  .app[data-active-task="source"] .canvases > .canvasWindow,
+  .app[data-active-task="compose"] .canvases > .canvasWindow,
+  .app[data-active-task="export"] .canvases > .canvasWindow {
+    display: none;
+  }
+
+  .app[data-active-task="preview"] .inputCanvasWindow {
+    display: none;
+  }
+
+  .app[data-active-task="preview"] .workspace,
+  .app[data-active-task="export"] .workspace {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .app[data-active-task="preview"] .canvases,
+  .app[data-active-task="preview"] .outputCanvasWindow,
+  .app[data-active-task="preview"] .outputCanvasWindow > .outputWindow {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .app[data-active-task="preview"] .canvases {
+    flex: 1 1 auto;
+  }
+
+  .app[data-active-task="preview"] .outputCanvasWindow {
+    margin: 0;
+  }
+
+  .app[data-active-task="preview"] .outputWindow > .windowChrome {
+    flex: 0 0 auto;
+  }
+
+  .app[data-active-task="preview"] .outputCanvasStage {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .app[data-active-task="preview"] .outputCanvasStage .canvas {
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .app[data-active-task="preview"] .menuBar {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    overflow: visible;
+  }
+
+  .app[data-active-task="preview"] .menuBar > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .app[data-active-task="preview"] .menuItem,
+  .app[data-active-task="preview"] .menuSelect {
+    width: 100%;
+    padding-inline: var(--space-1);
+    font-size: 12px;
+  }
+
+  .app[data-active-task="preview"] .menuPopupWrap > .menuItem {
+    width: 100%;
   }
 }
 
@@ -2600,7 +2597,7 @@
   color: var(--button-text);
 }
 .statusMetric {
-  padding: 2px 7px;
+  padding: var(--space-0) var(--space-2);
   border: none;
   box-shadow:
     inset 1px 1px var(--button-shadow),
@@ -2678,13 +2675,13 @@
 @media (max-width: 960px) {
   .audioPatchColumns {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    column-gap: 24px;
-    padding: 8px;
+    column-gap: var(--space-5);
+    padding: var(--space-2);
   }
   .audioPatchNodeGrid {
     grid-template-columns: minmax(0, 1fr) 24px;
     grid-template-rows: repeat(5, auto);
-    row-gap: 6px;
+    row-gap: var(--space-2);
   }
   .audioPatchNodeLabel {
     grid-column: 1;
@@ -2719,10 +2716,15 @@
     grid-row: 6;
   }
   .audioPatchTarget {
-    gap: 6px;
-    padding: 6px;
+    gap: var(--space-2);
+    padding: var(--space-2);
   }
   .audioPatchTargetLabel {
     overflow-wrap: anywhere;
   }
+}
+
+/* After every `X button` rule so toolbar groups keep their joined edge. */
+.segmented > button + button {
+  margin-left: -1px;
 }

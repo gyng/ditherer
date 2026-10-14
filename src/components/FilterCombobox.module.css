@@ -3,7 +3,7 @@
   min-width: 0;
   min-height: var(--control-height);
   box-sizing: border-box;
-  padding: 0 20px 0 6px;
+  padding: 0 var(--space-5) 0 var(--space-2);
   overflow: hidden;
   border: 2px inset var(--input-border, #ccc);
   background-color: var(--window-bg, white);
@@ -36,7 +36,7 @@
   min-width: 0;
   min-height: var(--control-height);
   margin: 0;
-  padding: 0 20px 0 6px;
+  padding: 0 var(--space-5) 0 var(--space-2);
   border: 2px inset var(--input-border, #ccc);
   appearance: none;
   background-color: var(--window-bg, white);
@@ -84,8 +84,8 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: baseline;
-  gap: 2px 10px;
-  padding: 8px 10px 9px;
+  gap: var(--space-0) var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2);
   background: linear-gradient(
     90deg,
     var(--beautiful-blue, #000080),
@@ -98,7 +98,7 @@
 .finderEyebrow {
   grid-row: 1 / span 2;
   align-self: stretch;
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-2);
   border: 1px solid rgb(255 255 255 / 55%);
   background: rgb(0 0 0 / 16%);
   font-family: ui-monospace, "Cascadia Mono", "Courier New", monospace;
@@ -127,8 +127,8 @@
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 5px;
-  padding: 8px 9px;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-2);
   border-bottom: 1px solid var(--separator-bottom, #808080);
   background: var(--light-gray, #c0c0c0);
 }
@@ -137,7 +137,7 @@
   position: relative;
   width: 13px;
   height: 13px;
-  margin-left: 2px;
+  margin-left: var(--space-0);
   border: 2px solid #24384f;
   border-radius: 50%;
 }
@@ -157,15 +157,14 @@
 .input {
   width: 100%;
   min-width: 0;
-  min-height: 38px;
+  height: var(--control-height-lg);
+  min-height: var(--control-height-lg);
   box-sizing: border-box;
-  padding: 7px 9px;
-  border: 2px inset var(--input-border, #808080);
-  outline: none;
+  padding: 0 var(--space-2);
   background: var(--window-bg, white);
   color: var(--window-text, black);
-  font: inherit;
-  font-size: 14px;
+  font-family: inherit;
+  font-size: var(--field-font-size);
 }
 
 .input:focus {
@@ -179,10 +178,10 @@
 
 .clearButton {
   display: grid;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
+  width: var(--control-height-lg);
+  min-width: var(--control-height-lg);
+  height: var(--control-height-lg);
+  min-height: var(--control-height-lg);
   margin: 0;
   padding: 0;
   place-items: center;
@@ -191,7 +190,7 @@
 }
 
 .searchHint {
-  padding: 2px 5px;
+  padding: var(--space-0) var(--space-1);
   border: 1px outset var(--button-highlight, #fff);
   background: var(--light-gray, #ddd);
   color: var(--muted-text);
@@ -203,9 +202,9 @@
 .statusBar {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-2);
   min-height: 27px;
-  padding: 3px 9px;
+  padding: var(--space-1) var(--space-2);
   border-top: 1px solid var(--separator-top, #fff);
   border-bottom: 1px solid var(--separator-bottom, #808080);
   background: var(--light-gray, #c0c0c0);
@@ -233,7 +232,7 @@
 .backButton {
   min-height: 20px;
   margin: 0;
-  padding: 1px 6px;
+  padding: 1px var(--space-2);
   font: inherit;
 }
 
@@ -242,27 +241,27 @@
   max-height: min(420px, calc(var(--radix-popover-content-available-height) - 164px));
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 10px;
+  padding: var(--space-2);
   background: color-mix(in srgb, var(--window-bg, #fff) 92%, var(--light-gray, #c0c0c0));
 }
 
 .recents,
 .browser {
   display: grid;
-  gap: 7px;
+  gap: var(--space-2);
 }
 
 .browser + .recents,
 .recents + .browser {
-  margin-top: 13px;
+  margin-top: var(--space-3);
 }
 
 .sectionHeading {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
   min-height: 18px;
-  padding-bottom: 3px;
+  padding-bottom: var(--space-1);
   border-bottom: 1px solid color-mix(in srgb, var(--window-text, #111) 28%, transparent);
 }
 
@@ -283,7 +282,7 @@
 .recentGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
+  gap: var(--space-1);
 }
 
 .recentButton,
@@ -296,9 +295,9 @@
 
 .recentButton {
   display: grid;
-  gap: 2px;
+  gap: var(--space-0);
   min-height: 44px;
-  padding: 6px 8px;
+  padding: var(--space-2) var(--space-2);
   border: 1px solid #8a8a8a;
   border-left: 4px solid var(--beautiful-blue, #000080);
   background: var(--window-bg, #fff);
@@ -319,15 +318,15 @@
 .categoryGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .categoryButton {
   display: grid;
   align-content: start;
-  gap: 5px;
+  gap: var(--space-1);
   min-height: 70px;
-  padding: 7px 8px;
+  padding: var(--space-2) var(--space-2);
   border: 1px solid #8a8a8a;
   border-top: 3px solid color-mix(in srgb, var(--beautiful-blue, #000080) 70%, #fff);
   background: var(--window-bg, #fff);
@@ -353,7 +352,7 @@
 .categoryHeader {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .categoryHeader strong {
@@ -366,7 +365,7 @@
 
 .categoryHeader span {
   margin-left: auto;
-  padding: 0 4px;
+  padding: 0 var(--space-1);
   border: 1px solid color-mix(in srgb, var(--window-text, #111) 35%, transparent);
   color: color-mix(in srgb, var(--window-text, #111) 70%, transparent);
   font-family: ui-monospace, "Cascadia Mono", "Courier New", monospace;
@@ -398,7 +397,7 @@
   max-height: min(365px, calc(var(--radix-popover-content-available-height) - 165px));
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 4px;
+  padding: var(--space-1);
   border: 2px inset var(--input-border, #808080);
   background: var(--window-bg, #fff);
   scroll-padding-block: 29px 8px;
@@ -418,7 +417,7 @@
   z-index: 2;
   top: 0;
   margin: -4px -4px 1px;
-  padding: 5px 9px;
+  padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid #808080;
   background: var(--light-gray, #c0c0c0);
   color: color-mix(in srgb, var(--window-text, #111) 70%, transparent);
@@ -433,10 +432,10 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   min-height: 46px;
   box-sizing: border-box;
-  padding: 5px 7px 5px 9px;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-2);
   border: 1px solid transparent;
   border-bottom-color: color-mix(in srgb, var(--window-text, #111) 18%, transparent);
   background: var(--window-bg, #fff);
@@ -449,7 +448,7 @@
 .itemText {
   display: grid;
   min-width: 0;
-  gap: 2px;
+  gap: var(--space-0);
 }
 
 .itemName {
@@ -478,7 +477,7 @@
 
 .badge,
 .currentBadge {
-  padding: 1px 4px;
+  padding: 1px var(--space-1);
   border: 1px solid #666;
   background: #ececec;
   color: #111;
@@ -532,8 +531,8 @@
   min-height: 0;
   overflow-y: auto;
   flex-direction: column;
-  gap: 8px;
-  padding: 13px 12px 12px;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-3);
   border: 2px inset var(--input-border, #808080);
   border-left: 4px solid var(--beautiful-blue, #000080);
   background: color-mix(in srgb, var(--window-bg, #fff) 94%, var(--beautiful-blue, #000080));
@@ -549,8 +548,8 @@
 }
 
 .detailPreview > div {
-  width: 100% !important;
-  height: 100% !important;
+  width: 100%;
+  height: 100%;
 }
 
 .detailPreview img {
@@ -587,11 +586,11 @@
 .detailFacts {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .detailFacts span {
-  padding: 2px 5px;
+  padding: var(--space-0) var(--space-1);
   border: 1px solid color-mix(in srgb, var(--window-text, #111) 34%, transparent);
   background: var(--light-gray, #ddd);
   color: color-mix(in srgb, var(--window-text, #111) 78%, transparent);
@@ -614,8 +613,8 @@
 
 .empty {
   display: grid;
-  gap: 7px;
-  padding: 25px 17px;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4);
   color: color-mix(in srgb, var(--window-text, #111) 68%, transparent);
   font-size: 11px;
   line-height: 1.45;
@@ -629,16 +628,16 @@
 .empty button {
   width: max-content;
   min-height: 30px;
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: var(--space-2);
   min-height: 29px;
-  padding: 4px 8px 5px;
+  padding: var(--space-1) var(--space-2) var(--space-1);
   border-top: 1px solid var(--separator-top, #fff);
   background: var(--light-gray, #c0c0c0);
   color: color-mix(in srgb, var(--window-text, #111) 68%, transparent);
@@ -651,7 +650,7 @@
 }
 
 .footer kbd {
-  padding: 1px 3px;
+  padding: 1px var(--space-1);
   border: 1px outset var(--button-highlight, #fff);
   background: color-mix(in srgb, var(--light-gray, #ddd) 88%, #fff);
   color: var(--window-text, #222);
@@ -676,11 +675,6 @@
     max-height: min(78dvh, var(--radix-popover-content-available-height));
   }
 
-  .input {
-    min-height: 44px;
-    font-size: 16px;
-  }
-
   .clearButton {
     width: 40px;
     min-width: 40px;
@@ -701,7 +695,7 @@
 @media (max-width: 720px) {
   .finderHeader {
     grid-template-columns: 1fr;
-    gap: 2px;
+    gap: var(--space-0);
   }
 
   .finderEyebrow {
@@ -740,8 +734,8 @@
 
   .footer {
     justify-content: space-between;
-    gap: 4px;
-    padding: 6px 8px;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-2);
   }
 }
 

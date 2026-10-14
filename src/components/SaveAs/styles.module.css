@@ -20,8 +20,8 @@
 /* Tabs */
 .tabs {
   display: flex;
-  padding: 0 8px;
-  padding-top: 8px;
+  padding: 0 var(--space-2);
+  padding-top: var(--space-2);
   gap: 1px;
 }
 
@@ -49,8 +49,8 @@
 /* Tab content */
 .tabContent {
   border: 2px inset var(--button-highlight, #fff);
-  padding: 12px;
-  margin: 0 8px 8px;
+  padding: var(--space-3);
+  margin: 0 var(--space-2) var(--space-2);
   min-width: 0;
   min-height: 0;
   flex: 1 1 auto;
@@ -61,8 +61,8 @@
 .videoTab {
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr);
-  column-gap: 10px;
-  row-gap: 8px;
+  column-gap: var(--space-2);
+  row-gap: var(--space-2);
   align-items: start;
 }
 
@@ -71,8 +71,8 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
   min-width: 0;
 }
 
@@ -106,21 +106,21 @@
 .radioGroup {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
   font-size: 12px;
 }
 
 .radioGroup label {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-1);
   cursor: pointer;
 }
 
 .customInput {
   width: 48px;
   border: 2px inset #ccc;
-  padding: 1px 4px;
+  padding: 1px var(--space-1);
   font-family: inherit;
   font-size: 12px;
 }
@@ -130,14 +130,14 @@
   font-size: 11px;
   color: #444;
   font-family: monospace;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 /* Buttons */
 .buttons {
   display: flex;
-  gap: 6px;
-  margin-top: 12px;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
   grid-column: 1 / -1;
   flex-wrap: wrap;
 }
@@ -168,7 +168,7 @@
   max-height: 200px;
   border: 2px inset #ccc;
   display: block;
-  margin-top: 8px;
+  margin-top: var(--space-2);
   grid-column: 1 / -1;
 }
 
@@ -184,7 +184,7 @@
   font-weight: bold;
   animation: blink 1.5s steps(5, start) infinite;
   font-size: 12px;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   grid-column: 1 / -1;
 }
 
@@ -192,7 +192,7 @@
 .progress {
   font-size: 11px;
   color: #555;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   grid-column: 1 / -1;
 }
 
@@ -203,7 +203,7 @@
   border: 2px inset #c0c0c0;
   overflow: hidden;
   grid-column: 1 / -1;
-  margin-top: 6px;
+  margin-top: var(--space-2);
 }
 
 .progressBarFill {
@@ -234,14 +234,14 @@
   }
 
   .tabContent {
-    margin: 0 4px 4px;
-    padding: 10px 8px;
+    margin: 0 var(--space-1) var(--space-1);
+    padding: var(--space-2) var(--space-2);
   }
 
   .buttons {
     position: sticky;
     bottom: 0;
-    padding: 8px 0;
+    padding: var(--space-2) 0;
     background: var(--light-gray);
     border-top: 1px solid #808080;
   }
@@ -250,7 +250,7 @@
 .sliderRow {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
   min-width: 0;
 }
 
@@ -258,14 +258,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 12px;
+  gap: var(--space-2) var(--space-3);
   min-width: 0;
 }
 
 .inlineSliderGroup {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 0;
   flex: 1;
 }
@@ -278,7 +278,7 @@
 .inlineSliderRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   min-width: 140px;
   flex: 1;
 }
@@ -300,26 +300,26 @@
   font-size: 10px;
   color: #888;
   cursor: help;
-  margin-left: 4px;
+  margin-left: var(--space-1);
   text-transform: none;
 }
 
 .warning {
   font-size: 11px;
   color: #c00;
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
 .copyFlash {
   font-size: 11px;
   color: green;
-  margin-left: 8px;
+  margin-left: var(--space-2);
 }
 
 .checkboxLabel {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: 12px;
   cursor: pointer;
 }
@@ -328,8 +328,8 @@
   font-size: 11px;
   color: #555;
   line-height: 1.3;
-  margin-top: 4px;
-  margin-bottom: 8px;
+  margin-top: var(--space-1);
+  margin-bottom: var(--space-2);
   max-width: 42ch;
   overflow-wrap: anywhere;
   grid-column: 2;
@@ -339,9 +339,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   margin-top: -2px;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
   grid-column: 2;
 }
 
@@ -355,7 +355,7 @@
 .paletteMore {
   font-size: 11px;
   color: #555;
-  margin-left: 4px;
+  margin-left: var(--space-1);
 }
 
 .sourceTimecode {
@@ -372,7 +372,7 @@
   border-top: 2px inset #ccc;
   border-right: 2px inset #fff;
   border-bottom: 2px inset #fff;
-  margin-top: 4px;
+  margin-top: var(--space-1);
   overflow: hidden;
   grid-column: 1 / -1;
 }
@@ -395,7 +395,7 @@
 
   .tab {
     min-height: 44px;
-    padding: 8px 16px;
+    padding: var(--space-2) var(--space-4);
     font-size: 14px;
     display: flex;
     align-items: center;
@@ -420,14 +420,14 @@
   }
 
   .tabContent {
-    margin: 0 4px 4px;
-    padding: 10px 8px;
+    margin: 0 var(--space-1) var(--space-1);
+    padding: var(--space-2) var(--space-2);
   }
 
   .buttons {
     position: sticky;
     bottom: 0;
-    padding: 8px 0;
+    padding: var(--space-2) 0;
     background: var(--light-gray);
     border-top: 1px solid #808080;
   }

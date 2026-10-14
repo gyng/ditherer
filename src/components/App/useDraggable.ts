@@ -78,28 +78,21 @@ export default function useDraggable(
     (el: HTMLElement, nextPos: { x: number; y: number }, notify = true) => {
       const clamped = clampPosition(el, nextPos);
       pos.current = clamped;
-      el.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
+      // Position via custom properties; each window's CSS decides whether to
+      // apply them, so docked and phone layouts need no inline overrides.
+      el.style.setProperty("--drag-x", `${clamped.x}px`);
+      el.style.setProperty("--drag-y", `${clamped.y}px`);
       if (notify) onPositionChange?.(clamped);
     },
     [clampPosition, onPositionChange],
   );
 
+  // Positions restored from outside (e.g. a saved window position) arrive as
+  // the same custom properties the hook writes.
   const readTranslateFromStyle = (el: HTMLElement) => {
-    const transform = window.getComputedStyle(el).transform;
-    if (!transform || transform === "none") return null;
-    const matrix3d = transform.match(/^matrix3d\((.+)\)$/);
-    if (matrix3d) {
-      const parts = matrix3d[1].split(",").map((v) => Number(v.trim()));
-      if (parts.length === 16) return { x: parts[12] || 0, y: parts[13] || 0 };
-      return null;
-    }
-    const matrix2d = transform.match(/^matrix\((.+)\)$/);
-    if (matrix2d) {
-      const parts = matrix2d[1].split(",").map((v) => Number(v.trim()));
-      if (parts.length === 6) return { x: parts[4] || 0, y: parts[5] || 0 };
-      return null;
-    }
-    return null;
+    const dragX = Number.parseFloat(el.style.getPropertyValue("--drag-x"));
+    const dragY = Number.parseFloat(el.style.getPropertyValue("--drag-y"));
+    return Number.isFinite(dragX) && Number.isFinite(dragY) ? { x: dragX, y: dragY } : null;
   };
 
   const ensureInitializedPosition = useCallback(

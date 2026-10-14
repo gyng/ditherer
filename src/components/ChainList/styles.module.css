@@ -2,9 +2,9 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 5px;
-  padding: 1px 2px 5px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+  padding: 1px var(--space-0) var(--space-1);
   border-bottom: 1px solid var(--separator-bottom);
 }
 
@@ -35,7 +35,7 @@
   background: var(--window-bg, white);
   max-height: 300px;
   overflow-y: auto;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 
 /* The per-entry ⋯ actions popover is absolutely positioned below its row and
@@ -57,9 +57,9 @@
   box-sizing: border-box;
   align-items: center;
   position: relative;
-  gap: 4px;
+  gap: var(--space-1);
   min-height: 38px;
-  padding: 4px 5px;
+  padding: var(--space-1) var(--space-1);
   cursor: pointer;
   user-select: none;
   font-size: 12px;
@@ -87,15 +87,10 @@
   color: var(--muted-text);
 }
 
-.disabled .entryName {
-  min-height: var(--control-height);
-  text-decoration: line-through;
-}
-
 .dragHandle {
   justify-self: center;
   cursor: grab;
-  padding: 0 2px;
+  padding: 0 var(--space-0);
   color: color-mix(in srgb, var(--window-text) 45%, var(--window-bg));
   font-size: 11px;
 }
@@ -125,7 +120,7 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  padding: 2px 0;
+  padding: var(--space-0) 0;
   border: 1px solid color-mix(in srgb, var(--window-text) 30%, var(--window-bg));
   background: color-mix(in srgb, var(--window-text) 8%, var(--window-bg));
   color: color-mix(in srgb, var(--window-text) 75%, var(--window-bg));
@@ -147,7 +142,7 @@
   background-color: transparent;
   color: var(--window-text, black);
   font: inherit;
-  padding: 4px 16px 4px 4px;
+  padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
   font-weight: bold;
   line-height: normal;
   text-align: left;
@@ -155,6 +150,11 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 0l4 4 4-4z' fill='%23000'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 4px center;
+}
+
+.disabled .entryName {
+  min-height: var(--control-height);
+  text-decoration: line-through;
 }
 
 .entryName:focus-visible {
@@ -212,7 +212,7 @@
   box-shadow: none;
   min-width: 26px;
   min-height: var(--control-height);
-  padding: 2px 5px;
+  padding: var(--space-0) var(--space-1);
   font-size: 12px;
   cursor: pointer;
   color: #888;
@@ -236,7 +236,7 @@
   display: flex;
   flex-direction: column;
   min-width: 190px;
-  padding: 2px;
+  padding: var(--space-0);
   border: 2px outset var(--button-highlight);
   background: var(--light-gray);
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55);
@@ -245,12 +245,12 @@
 .actionItem {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
   min-width: 0;
   min-height: 24px;
   margin: 0;
-  padding: 3px 10px 3px 4px;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1);
   border: none;
   background: none;
   box-shadow: none;
@@ -281,7 +281,7 @@
 }
 
 .actionItemDanger {
-  margin-top: 2px;
+  margin-top: var(--space-0);
   border-top: 1px solid var(--button-shadow, #808080);
 }
 
@@ -328,9 +328,9 @@
 .addRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px;
-  margin-bottom: 5px;
-  padding: 4px;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1);
+  padding: var(--space-1);
   border: 1px solid #aaa;
   background: #d8d8d8;
 }
@@ -410,7 +410,7 @@
   border: none;
   box-shadow: var(--chrome-raised);
   color: var(--button-text);
-  padding: 0 24px 0 var(--space-2);
+  padding: 0 var(--space-5) 0 var(--space-2);
   font-family: inherit;
   line-height: 1.1;
   box-sizing: border-box;
@@ -484,7 +484,7 @@
   grid-column: 5;
   justify-self: start;
   color: var(--button-text, #000);
-  padding: 0 4px;
+  padding: 0 var(--space-1);
   font-size: 12px;
 }
 
@@ -494,11 +494,11 @@
 
 .description {
   display: grid;
-  gap: 2px;
+  gap: var(--space-0);
   font-size: 11px;
   color: var(--button-text);
-  margin-top: 5px;
-  padding: 6px 7px;
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-2);
   border-left: 3px solid var(--beautiful-blue);
   background: var(--panel-soft);
   line-height: 1.35;
@@ -524,7 +524,7 @@
 
 .previewTitle {
   font-size: 10px;
-  padding: 1px 4px;
+  padding: 1px var(--space-1);
   background: var(--beautiful-blue, #0a246a);
   color: white;
   font-weight: bold;
@@ -557,18 +557,18 @@
 
 @media (max-width: 960px) {
   .addRow {
-    gap: 4px;
-    margin-bottom: 3px;
+    gap: var(--space-1);
+    margin-bottom: var(--space-1);
   }
 
   .chainList {
     max-height: 240px;
-    margin-bottom: 3px;
+    margin-bottom: var(--space-1);
     grid-template-columns: 18px 44px 30px minmax(0, 1fr) 6ch 44px;
   }
 
   .entry {
-    padding: 3px 4px;
+    padding: var(--space-1) var(--space-1);
   }
 
   .addBtn,
@@ -577,11 +577,11 @@
   }
 
   .entryName {
-    padding: 5px 14px 5px 3px;
+    padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
   }
 
   .description {
-    margin-top: 4px;
+    margin-top: var(--space-1);
   }
 }
 
@@ -595,19 +595,19 @@
   align-items: center;
   justify-content: space-between;
   background: linear-gradient(90deg, var(--beautiful-blue), var(--beautiful-blue-gradient));
-  padding: 2px 3px;
-  margin: 2px;
+  padding: var(--space-0) var(--space-1);
+  margin: var(--space-0);
 }
 
 .confirmTitleText {
-  padding-left: 2px;
+  padding-left: var(--space-0);
 }
 
 .confirmBody {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 16px 20px 12px;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) var(--space-3);
 }
 
 .confirmIcon {
@@ -620,7 +620,7 @@
   font-size: 12px;
   color: black;
   line-height: 1.5;
-  padding-top: 4px;
+  padding-top: var(--space-1);
 }
 
 .confirmSub {
@@ -631,13 +631,13 @@
 .confirmButtons {
   display: flex;
   justify-content: center;
-  gap: 6px;
-  padding: 4px 20px 14px;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-5) var(--space-4);
 }
 
 .confirmBtn {
   min-width: 75px;
-  padding: 3px 12px;
+  padding: var(--space-1) var(--space-3);
   font-size: 12px;
   font-family: inherit;
   background: var(--light-gray, #c0c0c0);
@@ -657,7 +657,7 @@
   border-right: 2px solid #ffffff;
   border-bottom: 2px solid #ffffff;
   box-shadow: none;
-  padding: 4px 11px 2px 13px;
+  padding: var(--space-1) var(--space-3) var(--space-0) var(--space-3);
 }
 
 .confirmBtn:focus-visible {
@@ -672,14 +672,14 @@
 .randomCycleBody {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px 20px 8px;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5) var(--space-2);
 }
 
 .randomCycleField {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .randomCycleLabel {
@@ -691,7 +691,7 @@
   width: 100%;
   box-sizing: border-box;
   border: 2px inset #ccc;
-  padding: 5px;
+  padding: var(--space-1);
   font: inherit;
   background: white;
   color: black;
@@ -708,6 +708,7 @@
   top: 0;
   left: 0;
   z-index: 9500;
+  transform: translate(var(--drag-x, 0px), var(--drag-y, 0px));
 }
 
 .libraryOverlay {
@@ -732,7 +733,7 @@
 
   .libraryBrowserFloat {
     position: static;
-    transform: none !important;
+    transform: none;
     width: 100%;
     height: 100%;
   }
@@ -776,7 +777,7 @@
   .removeBtn {
     min-width: 44px;
     min-height: 44px;
-    padding: 4px 6px;
+    padding: var(--space-1) var(--space-2);
     font-size: 14px;
   }
 
