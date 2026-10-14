@@ -18,6 +18,29 @@ const THUMB_H = 40;
 // source is garbage-collected (WeakMap key).
 const thumbCache = new WeakMap<object, Map<string, HTMLCanvasElement>>();
 
+// Unfiltered, thumbnail-sized copy of each source, shown dimmed while a
+// thumbnail waits in the render queue so the list never shows empty boxes.
+const placeholderCache = new WeakMap<object, string>();
+const placeholderUrl = (source: HTMLImageElement | HTMLCanvasElement): string => {
+  const cached = placeholderCache.get(source);
+  if (cached !== undefined) return cached;
+  const canvas = document.createElement("canvas");
+  canvas.width = THUMB_W;
+  canvas.height = THUMB_H;
+  let url = "";
+  try {
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(source, 0, 0, THUMB_W, THUMB_H);
+      url = canvas.toDataURL();
+    }
+  } catch {
+    // A tainted or unloaded source keeps the plain loading shimmer.
+  }
+  placeholderCache.set(source, url);
+  return url;
+};
+
 // Shared render queue: render one thumbnail at a time, yielding to the
 // browser between each so the live preview and paint stay responsive.
 type Task = { run: () => void; cancelled: boolean };
@@ -175,6 +198,7 @@ export const Thumbnail = ({ cacheKey, chain, filterByName, source }: Props) => {
   }, [cacheKey, chain, filterByName, source]);
 
   const dataUrl = useMemo(() => rendered?.toDataURL() ?? "", [rendered]);
+  const pendingUrl = useMemo(() => (source ? placeholderUrl(source) : ""), [source]);
 
   return (
     <div
@@ -185,6 +209,16 @@ export const Thumbnail = ({ cacheKey, chain, filterByName, source }: Props) => {
     >
       {rendered ? (
         <img src={dataUrl} width={THUMB_W} height={THUMB_H} alt="" draggable={false} />
+      ) : pendingUrl ? (
+        <img
+          className={s.thumbnailPending}
+          data-placeholder="true"
+          src={pendingUrl}
+          width={THUMB_W}
+          height={THUMB_H}
+          alt=""
+          draggable={false}
+        />
       ) : null}
     </div>
   );

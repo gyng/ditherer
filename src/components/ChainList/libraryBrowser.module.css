@@ -183,6 +183,11 @@
   image-rendering: auto;
 }
 
+.thumbnail img.thumbnailPending {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
 @keyframes thumbShimmer {
   0% {
     background-position: 200% 0;

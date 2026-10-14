@@ -1742,6 +1742,11 @@
 /* Compose with controls.subsectionHeader for canonical typography. */
 .audioPatchSectionLabel {
   flex: 1 1 auto;
+  /* One line per header so rows keep the control height in narrow columns. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .audioPatchSectionCount {
@@ -2484,6 +2489,11 @@
 
   .filterBar .filterButton {
     width: 100%;
+  }
+
+  .filterBarAuto {
+    position: static;
+    border-top: 0;
   }
 
   .titleBarBtn {

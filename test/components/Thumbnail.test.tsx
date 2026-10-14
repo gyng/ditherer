@@ -83,6 +83,8 @@ describe("Thumbnail", () => {
       ),
     );
     expect(container.firstElementChild?.getAttribute("data-loaded")).toBe("false");
+    // While queued, the unfiltered source stands in for the thumbnail.
+    expect(container.querySelector("img[data-placeholder]")).not.toBeNull();
     act(() => observerCallbacks[0]([{ isIntersecting: false } as IntersectionObserverEntry]));
     expect(filter.func).not.toHaveBeenCalled();
     act(() => observerCallbacks[0]([{ isIntersecting: true } as IntersectionObserverEntry]));
@@ -93,6 +95,7 @@ describe("Thumbnail", () => {
       undefined,
     );
     expect(container.firstElementChild?.getAttribute("data-loaded")).toBe("true");
+    expect(container.querySelector("img[data-placeholder]")).toBeNull();
     expect(container.querySelector("img")?.draggable).toBe(false);
 
     act(() =>
@@ -131,7 +134,9 @@ describe("Thumbnail", () => {
     );
     act(() => observerCallbacks[0]([{ isIntersecting: true } as IntersectionObserverEntry]));
     act(() => vi.runAllTimers());
-    expect(container.querySelector("img")).toBeNull();
+    // A failed render keeps only the unfiltered placeholder.
+    expect(container.querySelector("img:not([data-placeholder])")).toBeNull();
+    expect(container.firstElementChild?.getAttribute("data-loaded")).toBe("false");
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("Broken"), expect.any(Error));
 
     act(() =>

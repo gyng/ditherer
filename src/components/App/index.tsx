@@ -1174,6 +1174,7 @@ export const AudioPatchPanel = ({
                       ].join(" ")}
                       onClick={() => toggleSection(section.key)}
                       aria-expanded={open}
+                      title={section.label}
                     >
                       <span className={s.audioPatchSectionCaret}>{open ? "▾" : "▸"}</span>
                       <span
@@ -4212,10 +4213,21 @@ const App = () => {
           </CollapsibleSection>
         </div>
 
-        {/* Filter button — always visible, sticky on mobile */}
-        <div className={[s.filterBar, s.composeTask].join(" ")}>
+        {/* Manual apply is the primary, sticky action. With auto apply on the
+            output already follows edits, so the button is a plain re-run. */}
+        <div
+          className={[
+            s.filterBar,
+            s.composeTask,
+            state.realtimeFiltering ? s.filterBarAuto : "",
+          ].join(" ")}
+        >
           <button
-            className={[s.filterButton, s.waitButton, s.primaryButton].join(" ")}
+            className={[
+              s.filterButton,
+              s.waitButton,
+              state.realtimeFiltering ? "" : s.primaryButton,
+            ].join(" ")}
             disabled={filtering}
             onClick={applyChain}
           >
