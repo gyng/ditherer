@@ -95,7 +95,16 @@ test("core application workflows remain operable together", async ({ page }) => 
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden();
 
-  for (const name of ["Dock", "Float", "Lock", "Lock", "Reset", "Fit", "Output only", "Compare"]) {
+  for (const name of [
+    "Dock",
+    "Float",
+    "Lock",
+    "Lock",
+    "Reset positions",
+    "Fit input",
+    "Output only",
+    "Compare",
+  ]) {
     await page.getByRole("button", { name, exact: true }).click();
   }
   await page.getByRole("button", { name: "Source", exact: true }).click();

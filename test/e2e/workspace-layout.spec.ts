@@ -123,8 +123,6 @@ test("first-use workspace keeps both images visible and rejects stale layout pre
   expect(a).not.toBeNull();
   expect(b).not.toBeNull();
   expect(a!.x + a!.width <= b!.x || a!.y + a!.height <= b!.y).toBe(true);
-  await expect(page.getByRole("button", { name: "Lock", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  // Lock only applies to floating canvases, so docked view does not offer it.
+  await expect(page.getByRole("button", { name: "Lock", exact: true })).toHaveCount(0);
 });

@@ -213,9 +213,9 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
+  /* Groups wrap whole onto a second row rather than clipping buttons. */
   flex-wrap: wrap;
   gap: 6px 12px;
   padding: 5px 7px;
@@ -317,11 +317,48 @@
   margin-left: auto;
 }
 
+/* Toolbar groups: history, canvas view, floating-window placement, project. */
+.toolGroup {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.toolDivider {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 0;
+  margin: 2px 5px;
+  border-left: 1px solid var(--button-shadow);
+  border-right: 1px solid var(--button-highlight);
+}
+
+/* Dock / Float / Output only are one choice, so they read as one control. */
+.segmented {
+  display: flex;
+}
+
+.segmented > button + button {
+  margin-left: -1px;
+}
+
+.toolKbd {
+  margin-left: 4px;
+  padding: 0 4px;
+  border: 1px solid var(--button-shadow);
+  background: var(--window-bg);
+  color: var(--muted-text);
+  font:
+    10px/14px "Courier New",
+    monospace;
+}
+
 .layoutTools {
-  justify-content: center;
-  flex-wrap: nowrap;
-  min-width: 0;
-  overflow-x: auto;
+  justify-content: flex-start;
+}
+
+.toolGroup > * {
+  flex-shrink: 0;
 }
 
 .layoutTools button {
@@ -333,26 +370,6 @@
   background: #edf3fb;
   color: #00145e;
   box-shadow: none;
-}
-
-/* At laptop widths the task, layout, and export groups cannot all fit on one
-   row beside the sidebar. Give layout its own row instead of allowing the
-   task navigation to paint over (and intercept clicks from) Undo/Redo. */
-@media (min-width: 769px) and (max-width: 1600px) {
-  .workspaceToolbar {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .layoutTools {
-    grid-column: 1;
-    grid-row: 1;
-    justify-content: flex-start;
-  }
-
-  .exportTools {
-    grid-column: 2;
-    grid-row: 1;
-  }
 }
 
 .workspaceStatus {
@@ -399,11 +416,6 @@
 .statusMode[data-active="true"] .statusLamp {
   background: #55d574;
   box-shadow: 0 0 5px rgba(85, 213, 116, 0.75);
-}
-
-.statusHint {
-  margin-left: auto;
-  color: #aeb6b6;
 }
 
 .statusMetric {
@@ -2337,10 +2349,6 @@
     flex: 0 0 auto;
   }
 
-  .statusHint {
-    margin-left: 0;
-  }
-
   .exportTools {
     display: none;
   }
@@ -2585,8 +2593,7 @@
   letter-spacing: 0;
 }
 .statusMode,
-.statusMode[data-active="true"],
-.statusHint {
+.statusMode[data-active="true"] {
   color: var(--button-text);
 }
 .statusMetric {

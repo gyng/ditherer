@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, useLayoutEffect } from "react";
+import useSlowFrameWarning from "./useSlowFrameWarning";
 import useDraggable from "./useDraggable";
 import { formatFrameRate } from "utils/frameTiming";
 
@@ -1490,6 +1491,7 @@ const App = () => {
     return stored !== "floating";
   });
   const [comparisonEnabled, setComparisonEnabled] = useState(false);
+  const slowFrameWarning = useSlowFrameWarning(state.frameTime);
   const [comparisonPosition, setComparisonPosition] = useState(50);
   const [comparisonHold, setComparisonHold] = useState(false);
   const [historyVersion, setHistoryVersion] = useState(0);
@@ -4423,7 +4425,7 @@ const App = () => {
         </div>
 
         {state.frameTime != null && (
-          <div className={[s.perfStats, state.frameTime > 50 ? s.perfStatsSlow : ""].join(" ")}>
+          <div className={[s.perfStats, slowFrameWarning ? s.perfStatsSlow : ""].join(" ")}>
             <span className={s.perfReadout}>
               {state.stepTimes && state.stepTimes.length > 1
                 ? `${state.stepTimes.length} filters`
@@ -4431,7 +4433,7 @@ const App = () => {
               | {state.frameTime.toFixed(0)}ms | {formatFrameRate(state.frameTime)}
             </span>
             {/* Always reserve the icon's box so the row does not shift when it appears. */}
-            {state.frameTime > 50 ? (
+            {slowFrameWarning ? (
               <span
                 className={s.perfWarnIcon}
                 role="img"
@@ -4459,96 +4461,126 @@ const App = () => {
           aria-label="Workbench layout and export"
         >
           <div className={s.layoutTools}>
-            <span className={s.toolbarLabel}>Layout</span>
-            <button
-              onClick={() => restoreHistory(-1)}
-              disabled={!canUndo}
-              title="Undo (Ctrl/Command Z)"
-              aria-label="Undo"
-            >
-              ↶
-            </button>
-            <button
-              onClick={() => restoreHistory(1)}
-              disabled={!canRedo}
-              title="Redo (Ctrl/Command Shift Z)"
-              aria-label="Redo"
-            >
-              ↷
-            </button>
-            <button
-              aria-pressed={workspaceLayout === "docked"}
-              onClick={() => {
-                setWorkspaceLayout("docked");
-                setWindowsLocked(true);
-              }}
-              title="Dock input and output side by side"
-            >
-              Dock
-            </button>
-            <button
-              aria-pressed={workspaceLayout === "floating"}
-              onClick={() => {
-                setWorkspaceLayout("floating");
-                setWindowsLocked(false);
-              }}
-              title="Float canvas windows"
-            >
-              Float
-            </button>
-            <button
-              aria-pressed={workspaceLayout === "output"}
-              onClick={() => setWorkspaceLayout(workspaceLayout === "output" ? "docked" : "output")}
-              title="Show only the output canvas"
-            >
-              Output only
-            </button>
-            <button
-              aria-pressed={comparisonEnabled}
-              onClick={() => setComparisonEnabled((value) => !value)}
-              title="Compare source and output with a split view"
-            >
-              Compare
-            </button>
-            <button
-              aria-pressed={windowsLocked}
-              disabled={workspaceLayout !== "floating"}
-              onClick={() => setWindowsLocked((value) => !value)}
-              title="Lock floating canvas positions"
-            >
-              Lock
-            </button>
-            <button
-              onClick={() => {
-                const sidebarRight = chromeRef.current?.getBoundingClientRect().right || 350;
-                const toolbarBottom =
-                  workspaceToolbarRef.current?.getBoundingClientRect().bottom ?? 44;
-                const windowTop = Math.round(toolbarBottom + 10);
-                setInputWindowPosition({ x: Math.round(sidebarRight + 10), y: windowTop });
-                setOutputWindowPosition({ x: Math.round(sidebarRight + 430), y: windowTop });
-              }}
-              title="Reset floating canvas positions"
-            >
-              Reset
-            </button>
-            <button onClick={fitInputToWindow} title="Fit the input in the available workspace">
-              Fit
-            </button>
+            <div className={s.toolGroup} role="group" aria-label="History">
+              <button
+                onClick={() => restoreHistory(-1)}
+                disabled={!canUndo}
+                title="Undo (Ctrl/Command Z)"
+                aria-label="Undo"
+              >
+                ↶
+              </button>
+              <button
+                onClick={() => restoreHistory(1)}
+                disabled={!canRedo}
+                title="Redo (Ctrl/Command Shift Z)"
+                aria-label="Redo"
+              >
+                ↷
+              </button>
+            </div>
+            <span className={s.toolDivider} aria-hidden="true" />
+            <div className={s.toolGroup} role="group" aria-label="Canvas view">
+              <span className={s.toolbarLabel} aria-hidden="true">
+                View
+              </span>
+              <div className={s.segmented}>
+                <button
+                  aria-pressed={workspaceLayout === "docked"}
+                  onClick={() => {
+                    setWorkspaceLayout("docked");
+                    setWindowsLocked(true);
+                  }}
+                  title="Dock input and output side by side"
+                >
+                  Dock
+                </button>
+                <button
+                  aria-pressed={workspaceLayout === "floating"}
+                  onClick={() => {
+                    setWorkspaceLayout("floating");
+                    setWindowsLocked(false);
+                  }}
+                  title="Float canvas windows so they can be dragged"
+                >
+                  Float
+                </button>
+                <button
+                  aria-pressed={workspaceLayout === "output"}
+                  onClick={() =>
+                    setWorkspaceLayout(workspaceLayout === "output" ? "docked" : "output")
+                  }
+                  title="Show only the output canvas"
+                >
+                  Output only
+                </button>
+              </div>
+              <button
+                aria-pressed={comparisonEnabled}
+                onClick={() => setComparisonEnabled((value) => !value)}
+                title="Compare source and output with a split view"
+              >
+                Compare
+              </button>
+              <button
+                onClick={fitInputToWindow}
+                disabled={!state.inputImage}
+                title="Scale the input to fit the available workspace"
+              >
+                Fit input
+              </button>
+            </div>
+            {/* Window placement controls only apply while canvases float. */}
+            {workspaceLayout === "floating" && (
+              <>
+                <span className={s.toolDivider} aria-hidden="true" />
+                <div className={s.toolGroup} role="group" aria-label="Floating windows">
+                  <button
+                    aria-pressed={windowsLocked}
+                    onClick={() => setWindowsLocked((value) => !value)}
+                    title="Lock floating canvas positions"
+                  >
+                    Lock
+                  </button>
+                  <button
+                    onClick={() => {
+                      const sidebarRight = chromeRef.current?.getBoundingClientRect().right || 350;
+                      const toolbarBottom =
+                        workspaceToolbarRef.current?.getBoundingClientRect().bottom ?? 44;
+                      const windowTop = Math.round(toolbarBottom + 10);
+                      setInputWindowPosition({ x: Math.round(sidebarRight + 10), y: windowTop });
+                      setOutputWindowPosition({ x: Math.round(sidebarRight + 430), y: windowTop });
+                    }}
+                    title="Move floating canvases back to their default positions"
+                  >
+                    Reset positions
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          <div className={s.exportTools} role="group" aria-label="Save and export">
             <button
               onClick={() => {
                 setCommandQuery("");
                 setCommandActiveIndex(0);
                 setShowCommandPalette(true);
               }}
-              title="Open command palette (Ctrl/Command K or /)"
+              title="Open command palette (/ or Ctrl/Command K)"
+              aria-keyshortcuts="/ Control+K Meta+K"
             >
-              Commands…
+              Commands…{" "}
+              <kbd className={s.toolKbd} aria-hidden="true">
+                /
+              </kbd>
             </button>
-          </div>
-          <div className={s.exportTools} role="group" aria-label="Save and export">
-            <span className={s.toolbarLabel}>Project</span>
-            <button onClick={saveCurrentChain}>Save chain</button>
-            <button onClick={exportCurrentChain}>Share</button>
+            <span className={s.toolDivider} aria-hidden="true" />
+            <button onClick={saveCurrentChain} title="Save the current chain to your library">
+              Save chain
+            </button>
+            <button onClick={exportCurrentChain} title="Copy a link that reopens this chain">
+              Share
+            </button>
             <button className={s.primaryButton} onClick={openExport}>
               Export…
             </button>
@@ -4586,7 +4618,6 @@ const App = () => {
               {state.frameTime.toFixed(1)}ms · {formatFrameRate(state.frameTime)}
             </span>
           ) : null}
-          <span className={s.statusHint}>/ commands · Ctrl/⌘ Z undo</span>
         </div>
         <div
           className={[
