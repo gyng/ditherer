@@ -108,7 +108,8 @@ const ChainList = ({
     if (mobileActionsEntryId === null) return;
     const closeOnOutsidePointer = (event: PointerEvent) => {
       const target = event.target as Element | null;
-      if (!target?.closest(`[data-entry-actions="${CSS.escape(mobileActionsEntryId)}"]`)) {
+      const owner = target?.closest<HTMLElement>("[data-entry-actions]");
+      if (owner?.dataset.entryActions !== mobileActionsEntryId) {
         setMobileActionsEntryId(null);
       }
     };
@@ -120,10 +121,9 @@ const ChainList = ({
   const closeEntryActions = useCallback((entryId: string) => {
     setMobileActionsEntryId(null);
     requestAnimationFrame(() =>
-      document
-        .querySelector<HTMLElement>(
-          `[data-entry-actions="${CSS.escape(entryId)}"] > [aria-expanded]`,
-        )
+      Array.from(document.querySelectorAll<HTMLElement>("[data-entry-actions]"))
+        .find((element) => element.dataset.entryActions === entryId)
+        ?.querySelector<HTMLElement>(":scope > [aria-expanded]")
         ?.focus(),
     );
   }, []);
