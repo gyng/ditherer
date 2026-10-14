@@ -99,7 +99,7 @@ test("chain, filter, and screensaver audio inputs expose usable Auto Viz mapping
 
 for (const width of [1440, 390]) {
   test(`patch sockets and metric content remain contained at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 });
+    await page.setViewportSize({ width, height: width < 720 ? 844 : 1000 });
     await page.goto("/?testMedia=image%3Apepper.png");
     await page.getByRole("button", { name: "Compose", exact: true }).click();
     await page.getByTitle("Open chain audio visualizer mapping").click();
@@ -118,5 +118,13 @@ for (const width of [1440, 390]) {
         });
       }),
     ).toBe(true);
+
+    // Stacked phone columns must not let the timing group spill under the patch panel.
+    const dialog = page.getByRole("dialog", { name: "Chain audio visualizer settings" });
+    const timing = await dialog.getByRole("group", { name: /Chain swap timing/ }).boundingBox();
+    const autoViz = await dialog.getByRole("combobox", { name: "Auto Viz mode" }).boundingBox();
+    expect(timing).not.toBeNull();
+    expect(autoViz).not.toBeNull();
+    if (width < 720) expect(timing!.y + timing!.height).toBeLessThanOrEqual(autoViz!.y);
   });
 }

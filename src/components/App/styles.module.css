@@ -1393,8 +1393,15 @@
 }
 
 @media (max-width: 720px) {
+  /* Stacked columns take their content height and the dialog body scrolls once;
+     a height-bound grid let the first column spill under the second. */
   .screensaverColumns {
     grid-template-columns: 1fr;
+    flex: none;
+  }
+
+  .screensaverColumnRight {
+    overflow: visible;
   }
 }
 
