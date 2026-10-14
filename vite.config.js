@@ -70,8 +70,28 @@ const legacyEngineTestAliases = [
   { find: "wasm", replacement: path.join(filterPackageSource, "wasm") },
 ];
 
+// 98.css ships `@media (not(hover))`, which is invalid (`not(` is a function
+// token), so browsers never match it and Lightning CSS refuses to parse it.
+// Drop that dead block and place the stylesheet in the `win98` layer so app
+// styles always win over it.
+const win98StylesheetId = /[\\/]98\.css[\\/]dist[\\/]98\.css$/;
+const invalidHoverMediaRule = /@media \(not\(hover\)\)\{(?:[^{}]*\{[^{}]*\})*\}/g;
+const win98Stylesheet = () => ({
+  name: "ditherer:win98-stylesheet",
+  enforce: "pre",
+  transform(code, id) {
+    if (!win98StylesheetId.test(id)) return null;
+    return { code: `@layer win98{${code.replace(invalidHoverMediaRule, "")}}`, map: null };
+  },
+});
+
 export default defineConfig({
-  plugins: [react({ include: /\.(jsx|tsx)$/ })],
+  plugins: [win98Stylesheet(), react({ include: /\.(jsx|tsx)$/ })],
+  css: {
+    // Lightning CSS compiles CSS modules natively. postcss-modules re-inlined
+    // every `composes ... from` target into each importing module.
+    transformer: "lightningcss",
+  },
   worker: {
     format: "es",
     rolldownOptions: {
@@ -121,9 +141,6 @@ export default defineConfig({
     ],
   },
   build: {
-    // Lightning CSS crashes on even a single rule under the current Node runtime.
-    // Keep CSS minified through Vite's supported esbuild backend.
-    cssMinify: "esbuild",
     outDir: "build",
     chunkSizeWarningLimit: 1000,
     rolldownOptions: {

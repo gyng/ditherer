@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 
+import "98.css/dist/98.css";
 import "styles/global.css";
 
 // Eagerly load the library and pre-warm its worker during the boot screen.

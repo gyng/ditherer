@@ -27,7 +27,8 @@ patches. Updated Oxfmt to 0.73.0. npm audit reports zero vulnerabilities.
 Lightning CSS still crashes on a one-rule stylesheet and on the upgraded Vite
 build. Vite's supported esbuild CSS minification passes; minification and the
 JavaScript chunk budget remain enabled. This is a compiler backend change,
-not a move away from Vite.
+not a move away from Vite. (Later traced to a corrupted local
+binary and reverted; see plan 123.)
 
 ## Verification
 

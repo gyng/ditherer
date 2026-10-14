@@ -1,5 +1,4 @@
 /* Global styles — NOT a CSS module */
-@import "98.css/dist/98.css" layer(win98);
 @import "./typography.css";
 @import "./themes.css";
 

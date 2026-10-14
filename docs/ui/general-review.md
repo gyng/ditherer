@@ -56,7 +56,8 @@ branches 83.04% (all floors 80%). GL validated 270 filters, 750 compiles and
 no runtime errors or page overflow at all four viewports; export, compact
 compose and corrected command captures were visually inspected. Dependency
 audit including development packages reports zero vulnerabilities. The native
-LightningCSS crash also reproduces under Node 24; esbuild stays as CSS backend.
+LightningCSS crash also reproduces under Node 24; esbuild stays as CSS backend
+(later traced to a corrupted local binary; see plan 123).
 
 The implementation and queued design-system/general reviews are complete.
 Remote head was checked against the unchanged starting commit before push.
