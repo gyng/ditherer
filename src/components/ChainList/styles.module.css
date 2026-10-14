@@ -192,12 +192,10 @@
 }
 
 .entryActions {
-  display: inline-grid;
-  grid-auto-flow: column;
-  grid-auto-columns: auto;
+  position: relative;
+  display: inline-flex;
   align-items: center;
   justify-content: end;
-  gap: 2px;
   min-width: max-content;
 }
 
@@ -225,32 +223,79 @@
   color: #34475f;
 }
 
-.entryActions > .removeBtn:not(.mobileMore) {
+.mobileMore[aria-expanded="true"] {
+  color: var(--button-text, black);
+  border: 1px inset var(--button-highlight);
+}
+
+.actionMenu {
   display: none;
 }
 
-.entryActionsExpanded {
+.entryActionsExpanded .actionMenu {
   position: absolute;
   z-index: 30;
-  top: calc(100% - 3px);
-  right: 4px;
-  display: grid;
-  /* Reset the column auto-flow inherited from .entryActions so the buttons
-     wrap into a 4-wide popover grid instead of one overflowing row. */
-  grid-auto-flow: row;
-  grid-template-columns: repeat(4, 30px);
-  grid-auto-columns: 30px;
-  gap: 2px;
-  padding: 4px;
+  top: calc(100% + 2px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 2px;
   border: 2px outset var(--button-highlight);
   background: var(--light-gray);
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55);
 }
 
-.entryActionsExpanded > .removeBtn:not(.mobileMore) {
-  display: inline-flex;
+.actionItem {
+  display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 24px;
+  margin: 0;
+  padding: 3px 10px 3px 4px;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--button-text, black);
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.actionItem:hover:not(:disabled),
+.actionItem:focus-visible {
+  background: var(--beautiful-blue);
+  color: #fff;
+  outline: none;
+}
+
+.actionItem:active {
+  border: none;
+  box-shadow: none;
+}
+
+.actionIcon {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 16px;
+}
+
+.actionItemDanger {
+  margin-top: 2px;
+  border-top: 1px solid var(--button-shadow, #808080);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .removeBtn:hover:not(:disabled) {
@@ -563,27 +608,6 @@
   padding-left: 2px;
 }
 
-.confirmTitleClose {
-  background: var(--light-gray, #c0c0c0);
-  border-left: 1px solid #ffffff;
-  border-top: 1px solid #ffffff;
-  border-right: 1px solid #404040;
-  border-bottom: 1px solid #404040;
-  font-size: 9px;
-  line-height: 1;
-  padding: 1px 3px;
-  min-height: unset;
-  cursor: pointer;
-  color: black;
-}
-
-.confirmTitleClose:active {
-  border-left: 1px solid #404040;
-  border-top: 1px solid #404040;
-  border-right: 1px solid #ffffff;
-  border-bottom: 1px solid #ffffff;
-}
-
 .confirmBody {
   display: flex;
   align-items: flex-start;
@@ -701,13 +725,6 @@
 }
 
 @media (max-width: 960px) {
-  .confirmTitleClose {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
-    font-size: 14px;
-  }
-
   .confirmBtn,
   .randomCycleInput {
     min-height: 44px;
@@ -768,21 +785,9 @@
     font-size: 14px;
   }
 
-  .entryActionsExpanded {
-    position: absolute;
-    right: 4px;
-    top: calc(100% - 2px);
-    z-index: 30;
-    display: grid;
-    grid-template-columns: repeat(4, 44px);
-    padding: 4px;
-    background: var(--light-gray);
-    border: 2px outset var(--button-highlight);
-    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55);
-  }
-
-  .entryActionsExpanded > .removeBtn:not(.mobileMore) {
-    display: inline-flex;
+  .actionItem {
+    min-height: 44px;
+    font-size: 14px;
   }
 }
 

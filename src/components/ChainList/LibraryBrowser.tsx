@@ -673,8 +673,13 @@ const LibraryBrowser = ({
     >
       <div className={s.titleBar}>
         <span className={controls.windowTitle}>ditherer.exe - Filter Library</span>
-        <button className={s.closeBtn} onClick={onClose} title="Close">
-          &#10005;
+        <button
+          className={controls.titleClose}
+          onClick={onClose}
+          title="Close"
+          aria-label="Close Filter Library"
+        >
+          ×
         </button>
       </div>
 

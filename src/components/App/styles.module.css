@@ -172,6 +172,11 @@
   display: none;
 }
 
+/* Match the gap above Compose's first collapsible section. */
+.sourceTask > h2 {
+  margin-top: 20px;
+}
+
 .workspace {
   flex: 1 1 auto;
   min-width: 0;
@@ -256,15 +261,15 @@
 }
 
 .tabStrip .tab {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
   min-height: 26px;
   margin: 0;
-  padding: 4px 6px;
+  padding: 4px;
   font-weight: bold;
   white-space: nowrap;
   border: 2px outset var(--button-highlight);
@@ -290,6 +295,7 @@
 
 .tabNumber {
   display: inline-grid;
+  flex-shrink: 0;
   place-items: center;
   width: 16px;
   height: 16px;
@@ -823,12 +829,6 @@
   background: linear-gradient(90deg, var(--beautiful-blue), var(--beautiful-blue-gradient));
 }
 
-.commandTitleBar button {
-  min-height: 24px;
-  margin: 0;
-  padding: 1px 7px;
-}
-
 .commandSearch {
   margin: 8px;
   padding: 7px;
@@ -1045,12 +1045,12 @@
   min-height: 28px;
   font: inherit;
   color: inherit;
-  background: var(--light-gray, #c0c0c0);
+  background-color: var(--light-gray, #c0c0c0);
   border-left: 1px solid #ffffff;
   border-top: 1px solid #ffffff;
   border-right: 1px solid #404040;
   border-bottom: 1px solid #404040;
-  padding: 1px 18px 1px 4px;
+  padding: 1px 22px 1px 4px;
   height: 28px;
   box-sizing: border-box;
 }
@@ -1428,12 +1428,6 @@
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 }
 
-.screensaverClose {
-  min-height: unset;
-  line-height: 1;
-  padding: 1px 4px;
-}
-
 .screensaverBody {
   display: flex;
   flex-direction: column;
@@ -1583,7 +1577,7 @@
   min-height: 24px;
   font-size: 11px;
   border: 2px inset var(--input-border);
-  background: #fff;
+  background-color: #fff;
 }
 
 .audioPatchToolbarButton {
@@ -2500,6 +2494,11 @@
     min-height: 44px;
     padding: 2px 6px;
     font-size: 14px;
+  }
+
+  .modeButton {
+    min-height: 44px;
+    font-size: 12px;
   }
 
   .menuItem {

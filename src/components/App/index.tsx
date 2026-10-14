@@ -3941,8 +3941,7 @@ const App = () => {
           </div>
           {(state.inputImage || state.video) && (
             <CollapsibleSection title="Input Tweaks">
-              <fieldset className={controls.optionGroup}>
-                <legend className={controls.optionGroupLegend}>Input Tweaks</legend>
+              <fieldset className={controls.optionGroup} aria-label="Input Tweaks">
                 <Range
                   name="Input Scale"
                   types={{ range: [0.05, 16], desc: INPUT_SCALE_HELP }}
@@ -4931,11 +4930,11 @@ const App = () => {
                   >
                     <span className={controls.windowTitle}>Screensaver</span>
                     <button
-                      className={s.screensaverClose}
+                      className={controls.titleClose}
                       aria-label="Close screensaver settings"
                       onClick={() => setShowScreensaverDialog(false)}
                     >
-                      x
+                      ×
                     </button>
                   </div>
                   <div className={s.screensaverButtons}>
@@ -5031,14 +5030,14 @@ const App = () => {
                         : "Chain Audio Viz"}
                     </span>
                     <button
-                      className={s.screensaverClose}
+                      className={controls.titleClose}
                       aria-label="Close audio visualizer settings"
                       onClick={() => {
                         closeAudioModEditor();
                         setShowChainAudioGlobalEditor(false);
                       }}
                     >
-                      x
+                      ×
                     </button>
                   </div>
                   <div className={s.audioModBody}>
@@ -5217,6 +5216,7 @@ const App = () => {
               <div className={[controls.windowTitle, s.commandTitleBar].join(" ")}>
                 <strong>Commands</strong>
                 <button
+                  className={controls.titleClose}
                   onClick={() => setShowCommandPalette(false)}
                   aria-label="Close command palette"
                 >

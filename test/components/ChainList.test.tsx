@@ -326,7 +326,10 @@ describe("ChainList integration", () => {
     expect(
       first.querySelector('[aria-label^="More actions for"]')?.getAttribute("aria-expanded"),
     ).toBe("true");
-    click(first.querySelector('[aria-label^="Map audio visualizer to"]'));
+    expect(first.querySelector('[aria-label="Stage actions"]')?.textContent).toContain(
+      "Map audio visualizer to Invert",
+    );
+    click(first.querySelector('[title="Map audio visualizer to this filter"]'));
     expect(callbacks.onEditAudioMod).toHaveBeenCalledWith(
       "first",
       expect.objectContaining({ left: 0, top: 0 }),

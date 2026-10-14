@@ -263,6 +263,11 @@ input[type="radio"] + label::after {
   content: none;
 }
 
+/* 98.css pins the dropdown arrow to the top, which drifts on taller selects. */
+select {
+  background-position: right 2px center;
+}
+
 /* Use the system UI face everywhere. 98.css's pixel outline font with
    smoothing disabled looks fake once the browser antialiases it. */
 body,

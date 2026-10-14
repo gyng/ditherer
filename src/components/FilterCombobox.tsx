@@ -317,7 +317,7 @@ const FilterCombobox = ({
         : `${searchResult.total} ${searchResult.total === 1 ? "match" : "matches"}`
     : selectedCategory
       ? `${resultEntries.length}${resultTotal > resultEntries.length ? ` of ${resultTotal}` : ""} ${selectedCategory.name} filters`
-      : `${categoryEntries.length} categories · ${allFilters.length} total`;
+      : `${categoryEntries.length} categories · ${allBrowseEntries.length} total`;
 
   return (
     <Popover.Root open={open} onOpenChange={handleOpenChange}>

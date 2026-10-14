@@ -535,13 +535,13 @@ const SaveAs = ({ outputCanvasRef, onClose }: SaveAsProps) => {
       <div className={["handle", controls.titleBar, s.titleBar].join(" ")}>
         <span>Save As</span>
         <button
-          className={s.closeBtn}
+          className={controls.titleClose}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={!capturing && !exporting ? onClose : undefined}
           title="Close"
           aria-label="Close Save As"
         >
-          &#10005;
+          ×
         </button>
       </div>
 

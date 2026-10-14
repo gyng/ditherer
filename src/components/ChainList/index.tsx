@@ -66,6 +66,24 @@ const loadUserChains = (): SavedChain[] => {
   return chains;
 };
 
+// Visible text names the action; the stage name is screen-reader only so each
+// item's accessible name still says which stage it acts on.
+const StageActionLabel = ({
+  before,
+  name,
+  after = "",
+}: {
+  before: string;
+  name: string;
+  after?: string;
+}) => (
+  <span>
+    {before}
+    <span className={s.srOnly}>{` ${name}`}</span>
+    {after}
+  </span>
+);
+
 const ChainList = ({
   onEditAudioMod,
   onEditChainAudioMod,
@@ -85,6 +103,30 @@ const ChainList = ({
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const entryNameRefs = useRef(new Map<string, HTMLButtonElement>());
   const [mobileActionsEntryId, setMobileActionsEntryId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (mobileActionsEntryId === null) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (!target?.closest(`[data-entry-actions="${CSS.escape(mobileActionsEntryId)}"]`)) {
+        setMobileActionsEntryId(null);
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [mobileActionsEntryId]);
+
+  // Return focus to the row's ⋯ toggle so keyboard users keep their place.
+  const closeEntryActions = useCallback((entryId: string) => {
+    setMobileActionsEntryId(null);
+    requestAnimationFrame(() =>
+      document
+        .querySelector<HTMLElement>(
+          `[data-entry-actions="${CSS.escape(entryId)}"] > [aria-expanded]`,
+        )
+        ?.focus(),
+    );
+  }, []);
 
   const closeEntryEditor = useCallback((entryId: string) => {
     setEditingEntryId(null);
@@ -810,6 +852,15 @@ const ChainList = ({
               </span>
               <div
                 className={`${s.entryActions} ${mobileActionsEntryId === entry.id ? s.entryActionsExpanded : ""}`}
+                data-entry-actions={entry.id}
+                onKeyDown={(event) => {
+                  if (event.key !== "Escape" || mobileActionsEntryId !== entry.id) return;
+                  event.stopPropagation();
+                  setMobileActionsEntryId(null);
+                  (
+                    event.currentTarget.querySelector(`.${s.mobileMore}`) as HTMLElement | null
+                  )?.focus();
+                }}
               >
                 <button
                   className={`${s.removeBtn} ${s.mobileMore}`}
@@ -818,128 +869,170 @@ const ChainList = ({
                   onClick={(event) => {
                     event.stopPropagation();
                     clearHoverPreview();
+                    // Only one stage popover at a time: the actions menu replaces the finder.
+                    setEditingEntryId(null);
                     setMobileActionsEntryId((current) => (current === entry.id ? null : entry.id));
                   }}
                 >
                   ⋯
                 </button>
-                {entry.filter?.optionTypes?.animate && (
+                <div className={s.actionMenu} role="group" aria-label="Stage actions">
+                  {entry.filter?.optionTypes?.animate && (
+                    <button
+                      className={`${s.actionItem} ${actions.isAnimating() ? s.animActive : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        (entry.filter.optionTypes?.animate as ActionOptionDefinition).action(
+                          actions,
+                          state.inputCanvas,
+                          entry.filter.func,
+                          entry.filter.options,
+                        );
+                        closeEntryActions(entry.id);
+                      }}
+                      title={actions.isAnimating() ? "Stop animation" : "Play animation"}
+                    >
+                      <span className={s.actionIcon} aria-hidden="true">
+                        {actions.isAnimating() ? "\u23F9" : "\u25B6"}
+                      </span>
+                      <StageActionLabel
+                        before={actions.isAnimating() ? "Stop" : "Play"}
+                        name={entry.displayName}
+                        after=" animation"
+                      />
+                    </button>
+                  )}
                   <button
-                    className={`${s.removeBtn} ${actions.isAnimating() ? s.animActive : ""}`}
+                    className={s.actionItem}
                     onClick={(e) => {
                       e.stopPropagation();
-                      (entry.filter.optionTypes?.animate as ActionOptionDefinition).action(
-                        actions,
-                        state.inputCanvas,
-                        entry.filter.func,
-                        entry.filter.options,
+                      const match = filterList.find(
+                        (f) => f && f.displayName === entry.displayName,
                       );
+                      if (match) actions.chainReplace(entry.id, entry.displayName, match.filter);
+                      closeEntryActions(entry.id);
                     }}
-                    title={actions.isAnimating() ? "Stop animation" : "Play animation"}
-                    aria-label={
-                      actions.isAnimating()
-                        ? `Stop ${entry.displayName} animation`
-                        : `Play ${entry.displayName} animation`
-                    }
+                    title="Reset to defaults"
                   >
-                    {actions.isAnimating() ? "\u23F9" : "\u25B6"}
+                    <span className={s.actionIcon} aria-hidden="true">
+                      &#8634;
+                    </span>
+                    <StageActionLabel
+                      before="Reset"
+                      name={entry.displayName}
+                      after=" to defaults"
+                    />
                   </button>
-                )}
-                <button
-                  className={s.removeBtn}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const match = filterList.find((f) => f && f.displayName === entry.displayName);
-                    if (match) actions.chainReplace(entry.id, entry.displayName, match.filter);
-                  }}
-                  title="Reset to defaults"
-                  aria-label={`Reset ${entry.displayName} to defaults`}
-                >
-                  &#8634;
-                </button>
-                <button
-                  className={[s.removeBtn, entry.audioMod ? s.audioMappedBtn : ""].join(" ")}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditAudioMod?.(
-                      entry.id,
-                      (e.currentTarget as HTMLElement).getBoundingClientRect(),
-                    );
-                  }}
-                  title="Map audio visualizer to this filter"
-                  aria-label={`Map audio visualizer to ${entry.displayName}`}
-                >
-                  ♪
-                </button>
-                <button
-                  className={s.removeBtn}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const base = entry.filter;
-                    const opts = randomizeOptions(base);
-                    actions.chainReplace(entry.id, entry.displayName, { ...base, options: opts });
-                  }}
-                  title="Re-roll options"
-                  aria-label={`Randomize options for ${entry.displayName}`}
-                >
-                  ~
-                </button>
-                <button
-                  className={s.removeBtn}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openPresetBrowserForFilter(entry.displayName);
-                  }}
-                  title="Open preset browser and search for presets using this filter"
-                  aria-label={`Find presets using ${entry.displayName}`}
-                >
-                  &#9734;
-                </button>
-                <button
-                  className={s.removeBtn}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (chain.length <= 1) {
-                      actions.selectFilter("None", noop);
-                    } else {
-                      actions.chainRemove(entry.id);
-                    }
-                  }}
-                  title="Remove"
-                  aria-label={`Remove ${entry.displayName}`}
-                >
-                  x
-                </button>
-                <button
-                  className={s.removeBtn}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    actions.chainDuplicate(entry.id);
-                  }}
-                  title="Duplicate"
-                  aria-label={`Duplicate ${entry.displayName}`}
-                >
-                  +
-                </button>
-                <button
-                  className={`${s.removeBtn} ${pinnedPreviews.has(entry.id) ? s.animActive : ""}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    clearHoverPreview();
-                    const next = new Map(pinnedPreviews);
-                    if (next.has(entry.id)) {
-                      next.delete(entry.id);
-                    } else {
-                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      next.set(entry.id, { top: rect.top, left: rect.right + 8 });
-                    }
-                    setPinnedPreviews(next);
-                  }}
-                  title={pinnedPreviews.has(entry.id) ? "Unpin preview" : "Pin preview"}
-                  aria-label={`${pinnedPreviews.has(entry.id) ? "Unpin" : "Pin"} preview for ${entry.displayName}`}
-                >
-                  &#9673;
-                </button>
+                  <button
+                    className={s.actionItem}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const base = entry.filter;
+                      const opts = randomizeOptions(base);
+                      actions.chainReplace(entry.id, entry.displayName, { ...base, options: opts });
+                    }}
+                    title="Re-roll options"
+                  >
+                    <span className={s.actionIcon} aria-hidden="true">
+                      ⚄
+                    </span>
+                    <StageActionLabel
+                      before="Randomize options"
+                      name={`for ${entry.displayName}`}
+                    />
+                  </button>
+                  <button
+                    className={s.actionItem}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      actions.chainDuplicate(entry.id);
+                      closeEntryActions(entry.id);
+                    }}
+                    title="Duplicate"
+                  >
+                    <span className={s.actionIcon} aria-hidden="true">
+                      +
+                    </span>
+                    <StageActionLabel before="Duplicate" name={entry.displayName} />
+                  </button>
+                  <button
+                    className={[s.actionItem, entry.audioMod ? s.audioMappedBtn : ""].join(" ")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditAudioMod?.(
+                        entry.id,
+                        (e.currentTarget as HTMLElement).getBoundingClientRect(),
+                      );
+                      setMobileActionsEntryId(null);
+                    }}
+                    title="Map audio visualizer to this filter"
+                  >
+                    <span className={s.actionIcon} aria-hidden="true">
+                      ♪
+                    </span>
+                    <StageActionLabel
+                      before="Map audio visualizer"
+                      name={`to ${entry.displayName}`}
+                    />
+                  </button>
+                  <button
+                    className={s.actionItem}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openPresetBrowserForFilter(entry.displayName);
+                      setMobileActionsEntryId(null);
+                    }}
+                    title="Open preset browser and search for presets using this filter"
+                  >
+                    <span className={s.actionIcon} aria-hidden="true">
+                      &#9734;
+                    </span>
+                    <StageActionLabel before="Find presets" name={`using ${entry.displayName}`} />
+                  </button>
+                  <button
+                    className={`${s.actionItem} ${pinnedPreviews.has(entry.id) ? s.animActive : ""}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearHoverPreview();
+                      const next = new Map(pinnedPreviews);
+                      if (next.has(entry.id)) {
+                        next.delete(entry.id);
+                      } else {
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        next.set(entry.id, { top: rect.top, left: rect.right + 8 });
+                      }
+                      setPinnedPreviews(next);
+                      closeEntryActions(entry.id);
+                    }}
+                    title={pinnedPreviews.has(entry.id) ? "Unpin preview" : "Pin preview"}
+                  >
+                    <span className={s.actionIcon} aria-hidden="true">
+                      &#9673;
+                    </span>
+                    <StageActionLabel
+                      before={pinnedPreviews.has(entry.id) ? "Unpin preview" : "Pin preview"}
+                      name={`for ${entry.displayName}`}
+                    />
+                  </button>
+                  <button
+                    className={`${s.actionItem} ${s.actionItemDanger}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (chain.length <= 1) {
+                        actions.selectFilter("None", noop);
+                      } else {
+                        actions.chainRemove(entry.id);
+                      }
+                      closeEntryActions(entry.id);
+                    }}
+                    title="Remove"
+                  >
+                    <span className={s.actionIcon} aria-hidden="true">
+                      ×
+                    </span>
+                    <StageActionLabel before="Remove" name={entry.displayName} />
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -1062,11 +1155,11 @@ const ChainList = ({
                 ditherer.exe
               </span>
               <button
-                className={s.confirmTitleClose}
+                className={controls.titleClose}
                 aria-label="Close clear confirmation"
                 onClick={() => setShowClearConfirm(false)}
               >
-                &#10005;
+                ×
               </button>
             </div>
             <div className={s.confirmBody}>
@@ -1140,11 +1233,11 @@ const ChainList = ({
                 Random Chain Swap
               </span>
               <button
-                className={s.confirmTitleClose}
+                className={controls.titleClose}
                 aria-label="Close random cycle settings"
                 onClick={() => setShowRandomCycleModal(false)}
               >
-                x
+                ×
               </button>
             </div>
             <div className={s.randomCycleBody}>
